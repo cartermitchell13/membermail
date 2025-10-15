@@ -25,7 +25,7 @@ export default function Page() {
 								href="https://whop.com/dashboard"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="text-accent-9 hover:text-accent-10 underline"
+								className="underline text-[#FA4616] hover:text-[#E23F14]"
 							>
 								Whop Dashboard
 							</a>{" "}
@@ -78,7 +78,7 @@ export default function Page() {
 									href={`https://whop.com/apps/${process.env.NEXT_PUBLIC_WHOP_APP_ID}/install`}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="text-accent-9 hover:text-accent-10 underline"
+									className="underline text-[#FA4616] hover:text-[#E23F14]"
 								>
 									Click here to install your app
 								</a>
@@ -99,7 +99,7 @@ export default function Page() {
 							href="https://dev.whop.com"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="text-accent-9 hover:text-accent-10 underline"
+								className="underline text-[#FA4616] hover:text-[#E23F14]"
 						>
 							Whop Documentation
 						</a>

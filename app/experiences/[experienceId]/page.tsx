@@ -1,5 +1,6 @@
 import { whopSdk } from "@/lib/whop-sdk";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export default async function ExperiencePage({
 	params,
@@ -27,21 +28,19 @@ export default async function ExperiencePage({
 	// 'admin' means the user is an admin of the whop, such as an owner or moderator
 	// 'customer' means the user is a common member in this whop
 	// 'no_access' means the user does not have access to the whop
-	const { accessLevel } = result;
+    const { accessLevel } = result;
 
-	return (
-		<div className="flex justify-center items-center h-screen px-8">
-			<h1 className="text-xl">
-				Hi <strong>{user.name}</strong>, you{" "}
-				<strong>{result.hasAccess ? "have" : "do not have"} access</strong> to
-				this experience. Your access level to this whop is:{" "}
-				<strong>{accessLevel}</strong>. <br />
-				<br />
-				Your user ID is <strong>{userId}</strong> and your username is{" "}
-				<strong>@{user.username}</strong>.<br />
-				<br />
-				You are viewing the experience: <strong>{experience.name}</strong>
-			</h1>
-		</div>
-	);
+    if (result.hasAccess && accessLevel === "admin") {
+        redirect(`/experiences/${experienceId}/campaigns`);
+    }
+
+    return (
+        <div className="flex justify-center items-center h-screen px-8">
+            <h1 className="text-xl">
+                {result.hasAccess
+                    ? "You do not have permission to view this page."
+                    : "You do not have access to this experience."}
+            </h1>
+        </div>
+    );
 }

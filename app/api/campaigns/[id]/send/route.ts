@@ -40,7 +40,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         .eq("status", "active");
 
     // Audience filter by tiers if provided
-    const tiers: string[] | undefined = campaign.audience?.tiers ?? campaign.audience?.Tiers;
+    const audience = campaign.audience as { tiers?: string[]; Tiers?: string[] } | null;
+    const tiers: string[] | undefined = audience?.tiers ?? audience?.Tiers;
     if (Array.isArray(tiers) && tiers.length > 0) {
         membersQuery = membersQuery.in("membership_tier", tiers);
     }

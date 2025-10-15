@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export default function SettingsPage({ params }: { params: { experienceId: string } }) {
+export default function SettingsPage({ params }: { params: Promise<{ experienceId: string }> }) {
+    const { experienceId } = use(params);
     const [fromName, setFromName] = useState("");
     const [replyTo, setReplyTo] = useState("");
     const [footer, setFooter] = useState("");
@@ -12,7 +13,7 @@ export default function SettingsPage({ params }: { params: { experienceId: strin
 
     useEffect(() => {
         (async () => {
-            const res = await fetch(`/api/communities/resolve?companyId=${params.experienceId}`);
+            const res = await fetch(`/api/communities/resolve?companyId=${experienceId}`);
             if (res.ok) {
                 const { id } = await res.json();
                 const details = await fetch(`/api/communities/${id}`);
@@ -25,11 +26,11 @@ export default function SettingsPage({ params }: { params: { experienceId: strin
                 }
             }
         })();
-    }, [params.experienceId]);
+    }, [experienceId]);
 
     async function save() {
         setSaving(true);
-        const res = await fetch(`/api/communities/update-email-settings?companyId=${params.experienceId}`, {
+        const res = await fetch(`/api/communities/update-email-settings?companyId=${experienceId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ from_name: fromName, reply_to_email: replyTo, footer_text: footer }),
@@ -38,7 +39,7 @@ export default function SettingsPage({ params }: { params: { experienceId: strin
     }
 
     async function syncNow() {
-        await fetch(`/api/sync/members?companyId=${params.experienceId}`, { method: "POST" });
+        await fetch(`/api/sync/members?companyId=${experienceId}`, { method: "POST" });
     }
 
     return (

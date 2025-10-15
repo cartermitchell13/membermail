@@ -1,12 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
 const EmailPreview = dynamic(() => import("../EmailPreview"), { ssr: false });
 
-export default function TemplateEditorPage({ params }: { params: { experienceId: string; id: string } }) {
+export default function TemplateEditorPage({ params }: { params: Promise<{ experienceId: string; id: string }> }) {
+    const { experienceId, id } = use(params);
     const [template, setTemplate] = useState<any>(null);
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
@@ -16,7 +17,7 @@ export default function TemplateEditorPage({ params }: { params: { experienceId:
 
     useEffect(() => {
         (async () => {
-            const res = await fetch(`/api/templates/${params.id}`);
+            const res = await fetch(`/api/templates/${id}`);
             if (res.ok) {
                 const data = await res.json();
                 setTemplate(data.template);
@@ -25,11 +26,11 @@ export default function TemplateEditorPage({ params }: { params: { experienceId:
                 setHtml(data.template.html_content ?? "");
             }
         })();
-    }, [params.id]);
+    }, [id]);
 
     async function save() {
         setSaving(true);
-        await fetch(`/api/templates/${params.id}`, {
+        await fetch(`/api/templates/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, category, html_content: html }),

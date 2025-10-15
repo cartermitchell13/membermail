@@ -23,15 +23,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         useAdmin = true;
     }
 
-    const { id: sourceId } = await params;
+    const { id: sourceIdParam } = await params;
     let source: any = null;
 
     // If curated id, use curated source
-    const curated = getCuratedTemplateById(sourceId);
+    const curated = getCuratedTemplateById(sourceIdParam);
     if (curated) {
         source = curated;
     } else {
-        // Otherwise, must be a user-owned template
+        // Otherwise, must be a user-owned template (convert to number)
+        const sourceId = Number(sourceIdParam);
         const client = useAdmin ? getAdminSupabaseClient() : supabase;
         const { data, error } = await client
             .from("templates")

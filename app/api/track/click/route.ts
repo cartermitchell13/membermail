@@ -22,7 +22,12 @@ export async function GET(req: NextRequest) {
 			member_id: Number(memberId),
 			type: "clicked",
 		});
-		await supabase.rpc("increment_campaign_click_count", { cid: Number(campaignId) }).catch(() => undefined);
+		// Increment count (ignore errors)
+		try {
+			await supabase.rpc("increment_campaign_click_count", { cid: Number(campaignId) });
+		} catch {
+			// Ignore RPC errors
+		}
 	}
 
 	try {

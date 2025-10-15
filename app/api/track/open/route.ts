@@ -23,7 +23,12 @@ export async function GET(req: NextRequest) {
 			member_id: Number(memberId),
 			type: "opened",
 		});
-		await supabase.rpc("increment_campaign_open_count", { cid: Number(campaignId) }).catch(() => undefined);
+		// Increment count (ignore errors)
+		try {
+			await supabase.rpc("increment_campaign_open_count", { cid: Number(campaignId) });
+		} catch {
+			// Ignore RPC errors
+		}
 	}
 
 	return pixelResponse();

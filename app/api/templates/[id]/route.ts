@@ -6,12 +6,15 @@ import { sanitizeEmailHtml } from "@/lib/html/sanitize";
 import { getCuratedTemplateById } from "@/lib/templates/curated";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
+    const { id: idParam } = await params;
     // Allow curated templates by synthetic id
-    const curated = getCuratedTemplateById(id);
+    const curated = getCuratedTemplateById(idParam);
     if (curated) {
         return Response.json({ template: { ...curated, html_content: sanitizeEmailHtml(curated.html_content) } });
     }
+
+    // For database templates, convert to number
+    const id = Number(idParam);
 
     // First try dev cookie (works even with no Supabase session)
     const cookieStore = await cookies();
@@ -45,8 +48,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-    if (getCuratedTemplateById(id)) return new Response("Immutable curated template", { status: 400 });
+    const { id: idParam } = await params;
+    if (getCuratedTemplateById(idParam)) return new Response("Immutable curated template", { status: 400 });
+    const id = Number(idParam);
     const body = await req.json();
     const supabase = await getServerSupabaseClient();
     const { data: auth } = await supabase.auth.getUser();
@@ -92,8 +96,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-    if (getCuratedTemplateById(id)) return new Response("Immutable curated template", { status: 400 });
+    const { id: idParam } = await params;
+    if (getCuratedTemplateById(idParam)) return new Response("Immutable curated template", { status: 400 });
+    const id = Number(idParam);
     const supabase = await getServerSupabaseClient();
     const { data: auth } = await supabase.auth.getUser();
     if (auth.user?.id) {

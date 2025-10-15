@@ -3,7 +3,7 @@
 
 const SCRIPT_TAG_REGEX = /<\s*script[\s\S]*?>[\s\S]*?<\s*\/\s*script\s*>/gi;
 const EVENT_HANDLER_ATTR_REGEX = /\son[a-z]+\s*=\s*(["']).*?\1/gi; // onload=, onclick=
-const JAVASCRIPT_PROTOCOL_REGEX = /(href|src)\s*=\s*(["'])\s*javascript:[^\2]*\2/gi;
+const JAVASCRIPT_PROTOCOL_REGEX = /(href|src)\s*=\s*(["'])\s*javascript:.*?\2/gi;
 
 export function sanitizeEmailHtml(input: string): string {
     if (!input) return "";

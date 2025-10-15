@@ -1,6 +1,7 @@
 import { whopSdk } from "@/lib/whop-sdk";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 
 // Sync all members for a given Whop company into Supabase members table.
 // Expects: ?companyId=biz_xxx
@@ -12,8 +13,19 @@ export async function POST(req: NextRequest) {
 	}
 
 	const supabase = getAdminSupabaseClient();
+	
+	// Get or create a pseudo user_id for this community (using a cookie-based fallback)
+	const cookieStore = await cookies();
+	let userId = cookieStore.get("mm_uid")?.value;
+	if (!userId) {
+		userId = crypto.randomUUID();
+		cookieStore.set({ name: "mm_uid", value: userId, httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+	}
+	
+	// Ensure profile exists for this user
+	await supabase.from("profiles").upsert({ id: userId, email: `${userId}@system.local`, name: "System User" }, { onConflict: "id" });
 
-	let endCursor: string | undefined;
+	let endCursor: string | undefined | null;
 	let totalUpserts = 0;
 
 	while (true) {
@@ -23,18 +35,19 @@ export async function POST(req: NextRequest) {
 			after: endCursor,
 		});
 
-		const nodes = result.members.nodes ?? [];
+		if (!result) break;
+		const nodes = result.members?.nodes ?? [];
 		if (nodes.length === 0) break;
 
-		const rows = nodes.map((m) => ({
-			whop_member_id: m.id,
+		const rows = nodes.filter((m) => m !== null).map((m) => ({
+			whop_member_id: m!.id,
 			// community mapping must be handled separately; for now use a single community row by whop_community_id
 			// We'll upsert community if not exists using whop companyId as key
-			email: m.user?.email ?? "",
-			name: m.user?.name ?? m.user?.username ?? null,
+			email: m!.user?.email ?? "",
+			name: m!.user?.name ?? m!.user?.username ?? null,
 			membership_tier: null,
-			status: m.status === "joined" ? "active" : m.status === "left" ? "cancelled" : "paused",
-			joined_at: new Date(m.joinedAt * 1000).toISOString(),
+			status: m!.status === "joined" ? "active" : m!.status === "left" ? "cancelled" : "paused",
+			joined_at: new Date(m!.joinedAt * 1000).toISOString(),
 			last_active_at: null,
 			engagement_score: 0,
 		}));
@@ -46,7 +59,8 @@ export async function POST(req: NextRequest) {
 				{
 					whop_community_id: companyId,
 					name: companyId,
-					member_count: result.members.totalCount ?? nodes.length,
+					user_id: userId,
+					member_count: result.members?.totalCount ?? nodes.length,
 					updated_at: new Date().toISOString(),
 				},
 				{ onConflict: "whop_community_id" },
@@ -69,9 +83,9 @@ export async function POST(req: NextRequest) {
 		}
 
 		totalUpserts += withCommunity.length;
-		const pageInfo = result.members.pageInfo;
+		const pageInfo = result.members?.pageInfo;
 		if (!pageInfo?.hasNextPage) break;
-		endCursor = pageInfo.endCursor;
+		endCursor = pageInfo.endCursor ?? undefined;
 	}
 
 	return new Response(JSON.stringify({ ok: true, totalUpserts }), {

@@ -34,6 +34,7 @@ export default function EmailPreview({ html }: { html: string }) {
         if (!iframe) return;
         function resize() {
             try {
+                if (!iframe) return;
                 const body = iframe.contentDocument?.body;
                 const doc = iframe.contentDocument?.documentElement;
                 const height = Math.max(

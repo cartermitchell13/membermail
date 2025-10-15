@@ -1,13 +1,14 @@
 import { NextRequest } from "next/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id: paramId } = await params;
     const url = new URL(req.url);
     const limit = Math.min(Number(url.searchParams.get("limit") ?? "50"), 200);
     const offset = Math.max(Number(url.searchParams.get("offset") ?? "0"), 0);
 
     const supabase = getAdminSupabaseClient();
-    const id = Number(params.id);
+    const id = Number(paramId);
     const { data: events, error } = await supabase
         .from("email_events")
         .select("id,type,member_id,created_at")

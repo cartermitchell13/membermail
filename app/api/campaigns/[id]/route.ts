@@ -1,18 +1,20 @@
 import { NextRequest } from "next/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+	const { id } = await params;
 	const supabase = getAdminSupabaseClient();
 	const { data, error } = await supabase
 		.from("campaigns")
 		.select("*")
-		.eq("id", params.id)
+		.eq("id", id)
 		.single();
 	if (error) return new Response("Not found", { status: 404 });
 	return Response.json({ campaign: data });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+	const { id } = await params;
 	const body = await req.json();
 	const supabase = getAdminSupabaseClient();
 	const { data, error } = await supabase
@@ -25,16 +27,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
             audience: body.audience,
 			status: body.status,
 		})
-		.eq("id", params.id)
+		.eq("id", id)
 		.select()
 		.single();
 	if (error) return new Response("Error", { status: 500 });
 	return Response.json({ campaign: data });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+	const { id } = await params;
 	const supabase = getAdminSupabaseClient();
-	const { error } = await supabase.from("campaigns").delete().eq("id", params.id);
+	const { error } = await supabase.from("campaigns").delete().eq("id", id);
 	if (error) return new Response("Error", { status: 500 });
 	return new Response(null, { status: 204 });
 }

@@ -24,13 +24,14 @@ function withTracking(html: string, campaignId: number, memberId: number): strin
 }
 
 // Sends a test email to an arbitrary address provided in the body { to: string }
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id: paramId } = await params;
     const body = await req.json().catch(() => ({}));
     const to = body.to as string | undefined;
     if (!to) return new Response("Missing 'to'", { status: 400 });
 
     const supabase = getAdminSupabaseClient();
-    const id = Number(params.id);
+    const id = Number(paramId);
     const { data: campaign } = await supabase.from("campaigns").select("*").eq("id", id).single();
     if (!campaign) return new Response("Not found", { status: 404 });
 

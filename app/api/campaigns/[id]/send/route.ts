@@ -25,9 +25,10 @@ function withTracking(html: string, campaignId: number, memberId: number): strin
 	return trackedHtml + openPixel;
 }
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+	const { id: paramId } = await params;
 	const supabase = getAdminSupabaseClient();
-	const id = Number(params.id);
+	const id = Number(paramId);
 	const { data: campaign } = await supabase.from("campaigns").select("*").eq("id", id).single();
 	if (!campaign) return new Response("Not found", { status: 404 });
 

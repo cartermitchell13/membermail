@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/resend";
-import { createSignature, buildOpenPayload, buildClickPayload } from "@/lib/tracking/hmac";
+import { wrapEmailHtml } from "@/lib/email/templates/wrapper";
+import { createSignature, buildOpenPayload, buildClickPayload, buildUnsubscribePayload } from "@/lib/tracking/hmac";
+import { renderEmailFooterHtml } from "@/lib/email/footer";
 
-function withTracking(html: string, campaignId: number, memberId: number): string {
+function withTracking(html: string, campaignId: number, memberId: number, footerBrand: string, footerText: string | null): string {
     const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
     const openPayload = buildOpenPayload(String(campaignId), String(memberId));
     const openSig = createSignature(openPayload);
@@ -22,7 +24,15 @@ function withTracking(html: string, campaignId: number, memberId: number): strin
 		}
 	});
 
-	return trackedHtml + openPixel;
+    // Footer with unsubscribe link
+    const unsubPayload = buildUnsubscribePayload(String(campaignId), String(memberId));
+    const unsubSig = createSignature(unsubPayload);
+    const unsubscribeUrl = `${base}/api/unsubscribe?c=${campaignId}&m=${memberId}&sig=${unsubSig}`;
+    const safeBrand = footerBrand || "MemberMail";
+    const custom = footerText ? `<div style=\"margin-top:8px\">${footerText}</div>` : "";
+    const footerHtml = renderEmailFooterHtml(safeBrand, unsubscribeUrl, footerText);
+
+    return trackedHtml + openPixel + footerHtml;
 }
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -52,10 +62,20 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 		return new Response("No recipients", { status: 400 });
 	}
 
-	let sent = 0;
-	for (const m of members) {
-		const html = withTracking(campaign.html_content, id, m.id);
-		await sendEmail({ to: m.email, subject: campaign.subject, html });
+    // load community branding/footer
+    const { data: community } = await supabase
+        .from("communities")
+        .select("name, footer_text")
+        .eq("id", campaign.community_id)
+        .single();
+    const footerBrand = community?.name || "";
+    const footerText = community?.footer_text ?? null;
+
+    let sent = 0;
+    for (const m of members) {
+        const trackedHtml = withTracking(campaign.html_content, id, m.id, footerBrand, footerText);
+        const wrappedHtml = wrapEmailHtml(trackedHtml);
+		await sendEmail({ to: m.email, subject: campaign.subject, html: wrappedHtml });
 		sent += 1;
 		await supabase.from("email_events").insert({ campaign_id: id, member_id: m.id, type: "sent" });
 	}

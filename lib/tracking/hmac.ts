@@ -28,4 +28,8 @@ export function buildClickPayload(campaignId: string, memberId: string, url: str
 	return `click|c=${campaignId}&m=${memberId}&u=${url}`;
 }
 
+export function buildUnsubscribePayload(campaignId: string, memberId: string): string {
+    return `unsubscribe|c=${campaignId}&m=${memberId}`;
+}
+
 

@@ -16,7 +16,7 @@ function getResend(): Resend {
 }
 
 export async function sendEmail(options: { to: string; subject: string; html: string; from?: string }) {
-	const from = options.from ?? process.env.EMAIL_FROM ?? "MemberMail <no-reply@example.com>";
+	const from = options.from ?? process.env.EMAIL_FROM ?? "MemberMail <no-reply@mail.membermail.app>";
 	const resend = getResend();
 	return resend.emails.send({ from, to: options.to, subject: options.subject, html: options.html });
 }

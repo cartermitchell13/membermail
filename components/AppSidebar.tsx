@@ -2,57 +2,98 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { Megaphone, BarChart3, Users, Settings as SettingsIcon, Crown } from "lucide-react";
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarHeader,
+	SidebarFooter,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarGroupLabel,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { SidebarRail } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 type SidebarProps = {
 	experienceId: string;
 };
 
-function cx(...classes: Array<string | false | null | undefined>): string {
-	return classes.filter(Boolean).join(" ");
-}
-
 export default function AppSidebar({ experienceId }: SidebarProps) {
 	const pathname = usePathname();
 	const base = `/experiences/${experienceId}`;
+    const { open } = useSidebar();
 
 	const items = [
-		{ label: "Campaigns", href: `${base}/campaigns`, match: `${base}/campaigns` },
-		{ label: "New Email", href: `${base}/templates`, match: `${base}/templates` },
-		{ label: "Members", href: `${base}/members`, match: `${base}/members` },
-		{ label: "Settings", href: `${base}/settings`, match: `${base}/settings` },
+		{ label: "Campaigns", href: `${base}/campaigns`, match: `${base}/campaigns`, icon: Megaphone },
+		{ label: "Metrics", href: `${base}/metrics`, match: `${base}/metrics`, icon: BarChart3 },
+		{ label: "Members", href: `${base}/members`, match: `${base}/members`, icon: Users },
+		{ label: "Settings", href: `${base}/settings`, match: `${base}/settings`, icon: SettingsIcon },
+		{ label: "Upgrade", href: `/upgrade`, match: `/upgrade`, icon: Crown, highlight: true },
 	];
 
 	return (
-		<aside className="h-screen sticky top-0 w-60 shrink-0 bg-black">
-			<div className="px-4 py-5">
-				<Link href={`${base}/campaigns`} className="flex items-center gap-2">
-					<Image src="/assets/logos/mm-logo.png" alt="MemberMail" width={28} height={28} className="rounded" />
-					<span className="text-4 font-semibold">MemberMail</span>
-				</Link>
-			</div>
-			<nav className="px-2 py-2 space-y-1">
-				{items.map((it) => {
-					const active = pathname?.startsWith(it.match);
-					return (
-						<Link
-							key={it.href}
-							href={it.href}
-							className={cx(
-								"block rounded-md px-3 py-2 text-3",
-								active
-									? "bg-white/10 text-white"
-									: "text-white/70 hover:text-white hover:bg-white/5",
-							)}
-						>
-							{it.label}
-						</Link>
-					);
-				})}
-			</nav>
-			<div className="mt-auto px-4 py-4 text-white/40 text-2">
-				<span>Powered by Whop</span>
-			</div>
-		</aside>
+		<TooltipProvider delayDuration={100}>
+			<Sidebar collapsible="icon">
+				<SidebarHeader>
+					<Link href={`${base}/campaigns`} className="flex items-center gap-2">
+						<Image src="/assets/logos/mm-logo.png" alt="MemberMail" width={28} height={28} className="rounded" />
+						{open && <span className="text-4 font-semibold font-geist">membermail</span>}
+					</Link>
+					<div className="mt-3">
+						<SidebarTrigger aria-label="Toggle sidebar" />
+					</div>
+				</SidebarHeader>
+				<SidebarContent>
+					<SidebarGroup>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{items.map((it) => {
+									const active = pathname?.startsWith(it.match);
+									const isHighlight = 'highlight' in it && it.highlight;
+									return (
+										<SidebarMenuItem key={it.href}>
+											{!open ? (
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<div className="relative">
+															<SidebarMenuButton asChild isActive={active} className={isHighlight ? "text-yellow-500 hover:text-yellow-600" : ""}>
+																<Link href={it.href} className="flex items-center gap-2">
+																	<it.icon className="h-4 w-4" />
+																</Link>
+															</SidebarMenuButton>
+														</div>
+													</TooltipTrigger>
+													<TooltipContent side="right">
+														<p>{it.label}</p>
+													</TooltipContent>
+												</Tooltip>
+											) : (
+												<SidebarMenuButton asChild isActive={active} className={isHighlight ? "text-yellow-500 hover:text-yellow-600" : ""}>
+													<Link href={it.href} className="flex items-center gap-2">
+														<it.icon className="h-4 w-4" />
+														{open && <span>{it.label}</span>}
+													</Link>
+												</SidebarMenuButton>
+											)}
+										</SidebarMenuItem>
+									);
+								})}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				</SidebarContent>
+				<SidebarFooter className="text-white/40 text-2">
+					<span>Powered by Whop</span>
+				</SidebarFooter>
+				<SidebarRail />
+			</Sidebar>
+		</TooltipProvider>
 	);
 }
 

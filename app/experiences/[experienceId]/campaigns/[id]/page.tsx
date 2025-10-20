@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { EditorContent, useEditor } from "@tiptap/react";
+import Columns from "@/components/email-builder/extensions/Columns";
+import SlashCommand from "@/components/email-builder/extensions/SlashCommand";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -25,6 +27,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ exper
             Link.configure({ openOnClick: false, autolink: true }),
             Image,
             Placeholder.configure({ placeholder: "Write your newsletter..." }),
+            Columns,
+            SlashCommand,
         ],
         content: "",
         editable: true,

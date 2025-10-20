@@ -23,9 +23,19 @@ export default function EmailPreview({ html }: { html: string }) {
             </style>
         ` : '';
         
+        const centeringStyles = `
+            <style>
+                body { margin: 0 !important; padding: 0 !important; }
+                table[role="presentation"] { margin: 0 auto !important; }
+            </style>
+        `;
+        
+        // Wrap the email in a centered container so there's equal space on both sides
+        const centeredWrapperStart = `<div style="display:flex;justify-content:center"><div style="max-width:600px;width:100%;box-sizing:border-box;padding:0 12px">`;
+        const centeredWrapperEnd = `</div></div>`;
         return `<!doctype html><html><head>${viewportMeta}` +
-            `<meta name="color-scheme" content="light dark">${responsiveStyles}</head>` +
-            `<body style="margin:0; padding:0; background:#0b0b0b; width:100%; overflow-x:hidden;">${safe}</body></html>`;
+            `<meta name="color-scheme" content="light dark">${responsiveStyles}${centeringStyles}</head>` +
+            `<body style="margin:0; padding:0; background:#0b0b0b; width:100%; overflow-x:hidden;">${centeredWrapperStart}${safe}${centeredWrapperEnd}</body></html>`;
     }, [html, device]);
 
     // Auto-resize the iframe to the email's content height

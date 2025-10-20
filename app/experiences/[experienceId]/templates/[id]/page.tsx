@@ -1,6 +1,6 @@
 "use client";
 import { use, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import dynamic from "next/dynamic";
@@ -14,6 +14,8 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ exper
     const [html, setHtml] = useState("");
     const [saving, setSaving] = useState(false);
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const isCurated = String(id).startsWith("cur-");
 
     useEffect(() => {
         (async () => {
@@ -41,7 +43,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ exper
     const showPreview = searchParams.get("preview") === "1";
 
     return (
-        <div className="h-screen flex flex-col">
+        <div className="absolute inset-0 flex flex-col">
             {/* Header */}
             <div className="border-b border-white/10 bg-black/40 backdrop-blur-sm">
                 <div className="px-8 py-4 flex items-center justify-between">
@@ -52,12 +54,28 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ exper
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Button variant="outline" className="border-white/10 hover:bg-white/5">
-                            Cancel
-                        </Button>
-                        <Button disabled={saving} onClick={save} className="bg-[#FF5722] hover:bg-[#FF5722]/90 text-white">
-                            {saving ? "Saving..." : "Save"}
-                        </Button>
+                        {isCurated ? (
+                            <>
+                                <Button
+                                    onClick={async () => {
+                                        await fetch(`/api/templates/${id}/duplicate`, { method: "POST" });
+                                        router.replace(`../../templates`);
+                                    }}
+                                    className="bg-[#FA4616] hover:bg-[#E23F14] text-white"
+                                >
+                                    Duplicate
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button variant="outline" className="border-white/10 hover:bg-white/5">
+                                    Cancel
+                                </Button>
+                                <Button disabled={saving} onClick={save} className="bg-[#FF5722] hover:bg-[#FF5722]/90 text-white">
+                                    {saving ? "Saving..." : "Save"}
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -74,6 +92,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ exper
                                 onChange={(e) => setName(e.target.value)}
                                 className="bg-white/5 border-white/10 text-white"
                                 placeholder="e.g., Weekly Recap"
+                                disabled={isCurated}
                             />
                         </div>
                         <div className="space-y-2">
@@ -83,6 +102,7 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ exper
                                 onChange={(e) => setCategory(e.target.value)}
                                 className="bg-white/5 border-white/10 text-white"
                                 placeholder="e.g., Trading, Fitness, etc."
+                                disabled={isCurated}
                             />
                         </div>
                     </div>

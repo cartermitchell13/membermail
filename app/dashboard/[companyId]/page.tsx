@@ -37,6 +37,23 @@ export default async function DashboardPage({
 					Hi <strong>{user.name}</strong> (@{user.username}) — Access: {accessLevel}
 				</p>
 			</div>
+			{/* Upgrade banner */}
+			<div className="bg-gradient-to-r from-[#FA4616] to-[#E23F14] rounded-lg p-6 border border-[#FA4616]/20">
+				<div className="flex items-center justify-between">
+					<div>
+						<h2 className="text-2xl font-semibold mb-2 text-white">Unlock Premium Features</h2>
+						<p className="text-white/90">
+							Upgrade to Pro or Enterprise for advanced email campaigns, analytics, and more.
+						</p>
+					</div>
+					<Link
+						href="/upgrade"
+						className="px-6 py-3 bg-white text-[#FA4616] rounded-lg font-semibold hover:bg-white/90 transition-colors whitespace-nowrap"
+					>
+						View Plans
+					</Link>
+				</div>
+			</div>
 			<div className="grid md:grid-cols-2 gap-6">
 				<div className="bg-white rounded-lg p-6 shadow">
 					<h2 className="text-xl font-semibold mb-4">Campaigns</h2>

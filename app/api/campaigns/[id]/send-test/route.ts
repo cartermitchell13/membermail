@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/resend";
+import { wrapEmailHtml } from "@/lib/email/templates/wrapper";
 import { createSignature, buildOpenPayload, buildClickPayload } from "@/lib/tracking/hmac";
 
 function withTracking(html: string, campaignId: number, memberId: number): string {
@@ -37,8 +38,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Use a temporary synthetic memberId for tracking in tests
     const syntheticMemberId = 0;
-    const html = withTracking(campaign.html_content, id, syntheticMemberId);
-    await sendEmail({ to, subject: `[Test] ${campaign.subject}`, html });
+    const trackedHtml = withTracking(campaign.html_content, id, syntheticMemberId);
+    const wrappedHtml = wrapEmailHtml(trackedHtml);
+    await sendEmail({ to, subject: `[Test] ${campaign.subject}`, html: wrappedHtml });
     return Response.json({ ok: true });
 }
 

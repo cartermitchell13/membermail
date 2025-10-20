@@ -14,6 +14,7 @@ const buttonVariants = cva(
 				ghost: "text-white hover:bg-white/10",
 			},
 			size: {
+				xs: "h-7 px-2 text-xs font-normal",
 				sm: "h-8 px-3",
 				md: "h-9 px-4",
 				lg: "h-10 px-5",

@@ -2,6 +2,7 @@
 import { use, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage({ params }: { params: Promise<{ experienceId: string }> }) {
     const { experienceId } = use(params);
@@ -44,28 +45,88 @@ export default function SettingsPage({ params }: { params: Promise<{ experienceI
 
     return (
         <div className="space-y-6">
-            <h1 className="text-4xl font-semibold tracking-tight">Settings</h1>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                    <h2 className="text-xl font-semibold">Community</h2>
-                    <div className="text-white/70 text-sm">Members: {stats.member_count ?? "-"} • Last sync: {stats.last_sync_at ? new Date(stats.last_sync_at).toLocaleString() : "-"}</div>
-                    <Button onClick={syncNow}>Sync members</Button>
+            <div className="flex items-center justify-between">
+                <h1 className="text-4xl font-semibold tracking-tight">Settings</h1>
+            </div>
+
+            {/* Community Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Total Members</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-2xl font-semibold">{stats.member_count ?? "-"}</CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Last Sync</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-white/70">
+                        {stats.last_sync_at ? new Date(stats.last_sync_at).toLocaleString() : "Never"}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Button onClick={syncNow} className="w-full">
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Sync members
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Email Settings */}
+            <div className="rounded-xl border border-white/10 overflow-hidden">
+                <div className="bg-white/5 px-6 py-4 border-b border-white/10">
+                    <h2 className="text-xl font-semibold">Email Settings</h2>
+                    <p className="text-sm text-white/60 mt-1">Configure how your emails appear to recipients</p>
                 </div>
-                <div className="space-y-4">
-                    <h2 className="text-xl font-semibold">Email</h2>
+                <div className="bg-white/2 p-6 space-y-6">
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium">From name</label>
-                        <Input value={fromName} onChange={(e) => setFromName(e.target.value)} />
+                        <label className="block text-sm font-medium text-white/90">From name</label>
+                        <Input 
+                            value={fromName} 
+                            onChange={(e) => setFromName(e.target.value)}
+                            placeholder="Your Company Name"
+                            className="max-w-md"
+                        />
+                        <p className="text-xs text-white/50">This name will appear in the "From" field of your emails</p>
                     </div>
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium">Reply-to email</label>
-                        <Input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} />
+                        <label className="block text-sm font-medium text-white/90">Reply-to email</label>
+                        <Input 
+                            value={replyTo} 
+                            onChange={(e) => setReplyTo(e.target.value)}
+                            placeholder="hello@example.com"
+                            type="email"
+                            className="max-w-md"
+                        />
+                        <p className="text-xs text-white/50">Replies to your campaigns will be sent to this email address</p>
                     </div>
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium">Footer text</label>
-                        <Input value={footer} onChange={(e) => setFooter(e.target.value)} />
+                        <label className="block text-sm font-medium text-white/90">Footer text</label>
+                        <Input 
+                            value={footer} 
+                            onChange={(e) => setFooter(e.target.value)}
+                            placeholder="© 2025 Your Company. All rights reserved."
+                            className="max-w-md"
+                        />
+                        <p className="text-xs text-white/50">This text will appear at the bottom of all your emails</p>
                     </div>
-                    <Button disabled={saving} onClick={save}>{saving ? "Saving..." : "Save"}</Button>
+                    <div className="pt-4">
+                        <Button 
+                            disabled={saving} 
+                            onClick={save}
+                            className="bg-[#FA4616] text-white hover:bg-[#E23F14] shadow-lg shadow-[#FA4616]/20"
+                        >
+                            {saving ? "Saving..." : "Save changes"}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -20,6 +20,7 @@ export type Database = {
           click_count: number | null
           community_id: number
           content_md: string | null
+          content_json: Json | null
           created_at: string | null
           html_content: string
           id: number
@@ -37,6 +38,7 @@ export type Database = {
           click_count?: number | null
           community_id: number
           content_md?: string | null
+          content_json?: Json | null
           created_at?: string | null
           html_content: string
           id?: number
@@ -54,6 +56,7 @@ export type Database = {
           click_count?: number | null
           community_id?: number
           content_md?: string | null
+          content_json?: Json | null
           created_at?: string | null
           html_content?: string
           id?: number
@@ -122,6 +125,62 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drafts: {
+        Row: {
+          id: string
+          campaign_id: number | null
+          user_id: string
+          experience_id: string
+          subject: string | null
+          preview_text: string | null
+          html_content: string | null
+          editor_json: Json | null
+          yjs_state: string | null
+          is_draft: boolean | null
+          last_edited_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          campaign_id?: number | null
+          user_id: string
+          experience_id: string
+          subject?: string | null
+          preview_text?: string | null
+          html_content?: string | null
+          editor_json?: Json | null
+          yjs_state?: string | null
+          is_draft?: boolean | null
+          last_edited_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          campaign_id?: number | null
+          user_id?: string
+          experience_id?: string
+          subject?: string | null
+          preview_text?: string | null
+          html_content?: string | null
+          editor_json?: Json | null
+          yjs_state?: string | null
+          is_draft?: boolean | null
+          last_edited_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drafts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -249,6 +308,7 @@ export type Database = {
         Row: {
           category: string | null
           content_md: string | null
+          content_json: Json | null
           created_at: string | null
           html_content: string | null
           id: number
@@ -261,6 +321,7 @@ export type Database = {
         Insert: {
           category?: string | null
           content_md?: string | null
+          content_json?: Json | null
           created_at?: string | null
           html_content?: string | null
           id?: number
@@ -273,6 +334,7 @@ export type Database = {
         Update: {
           category?: string | null
           content_md?: string | null
+          content_json?: Json | null
           created_at?: string | null
           html_content?: string | null
           id?: number

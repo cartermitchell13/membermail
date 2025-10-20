@@ -21,6 +21,12 @@ const EnvSchema = z.object({
 	// Tracking
 	TRACKING_HMAC_SECRET: z.string().optional(),
 
+	// AI / OpenAI
+	OPENAI_API_KEY: z.string().optional(),
+	
+	// AI / Google Gemini (for image generation)
+	GEMINI_API_KEY: z.string().optional(),
+
 	// App URL for absolute tracking links
 	NEXT_PUBLIC_APP_URL: z
 		.string()

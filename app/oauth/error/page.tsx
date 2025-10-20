@@ -5,12 +5,13 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Suspense } from "react";
 
 /**
- * OAuth Error Page
- * Displays error messages when OAuth authentication fails
+ * OAuth Error Page Content Component
+ * Separated to allow Suspense boundary wrapping
  */
-export default function OAuthErrorPage() {
+function OAuthErrorContent() {
 	const searchParams = useSearchParams();
 	const error = searchParams.get("error") || "unknown_error";
 	
@@ -96,5 +97,26 @@ export default function OAuthErrorPage() {
 				</p>
 			</Card>
 		</div>
+	);
+}
+
+/**
+ * OAuth Error Page
+ * Displays error messages when OAuth authentication fails
+ */
+export default function OAuthErrorPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="min-h-screen flex items-center justify-center bg-gray-50">
+					<div className="text-center">
+						<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto" />
+						<p className="mt-4 text-gray-600">Loading...</p>
+					</div>
+				</div>
+			}
+		>
+			<OAuthErrorContent />
+		</Suspense>
 	);
 }

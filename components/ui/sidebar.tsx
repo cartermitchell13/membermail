@@ -158,9 +158,9 @@ export function SidebarMenuButton({
 	);
 
 	if (asChild && React.isValidElement(children)) {
-		return React.cloneElement(children as React.ReactElement, {
+		return React.cloneElement(children, {
 			className: cn(baseClasses, (children as any).props?.className),
-		});
+		} as any);
 	}
 
 	return (

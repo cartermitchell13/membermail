@@ -57,12 +57,16 @@ export async function POST(req: NextRequest) {
 
 	const cookieStore = await cookies();
 	if (!uid) {
-		let cookieUid = cookieStore.get("mm_uid")?.value;
-		if (!cookieUid) {
-			cookieUid = (globalThis as any).crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-			cookieStore.set({ name: "mm_uid", value: cookieUid, httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+		// Get or create a unique ID for anonymous users
+		const existingCookieUid = cookieStore.get("mm_uid")?.value;
+		if (existingCookieUid) {
+			uid = existingCookieUid;
+		} else {
+			// Generate a new unique ID for anonymous users
+			const newUid = (globalThis as any).crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+			cookieStore.set({ name: "mm_uid", value: newUid, httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+			uid = newUid;
 		}
-		uid = cookieUid;
 	}
 
 	const ext = getExtFromMime(file.type);

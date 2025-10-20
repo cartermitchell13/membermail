@@ -79,27 +79,6 @@ const CTA = Node.create({
 			{ tag: "a.mm-cta" },
 		];
 	},
-	editorProps: {
-		handleClick(view, pos, event) {
-			const target = event.target as HTMLElement;
-			if (target && (target.closest('a.mm-cta') || target.matches('a.mm-cta'))) {
-				// Prevent navigation while editing
-				event.preventDefault();
-				return true;
-			}
-			return false;
-		},
-		handleDOMEvents: {
-			click: (_view, event) => {
-				const target = event.target as HTMLElement;
-				if (target && (target.closest('a.mm-cta') || target.matches('a.mm-cta'))) {
-					event.preventDefault();
-					return true;
-				}
-				return false;
-			},
-		},
-	},
 	renderHTML({ HTMLAttributes }) {
 		const href = (HTMLAttributes.href as string) || "";
 		const variant = ((HTMLAttributes.variant as CtaVariant) || "primary") as CtaVariant;

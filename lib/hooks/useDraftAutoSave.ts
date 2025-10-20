@@ -52,6 +52,7 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
   // Refs for debouncing and latest values
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
+  const isLoadingDraft = useRef(false);
   const latestValuesRef = useRef({ subject, previewText, draftId, campaignId });
   
   // Update ref with latest values
@@ -150,6 +151,7 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
    */
   const loadDraft = useCallback(async (id: string) => {
     try {
+      isLoadingDraft.current = true;
       const response = await fetch(`/api/drafts/${id}`);
       if (!response.ok) {
         throw new Error('Failed to load draft');
@@ -162,21 +164,24 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
         // Load content into editor
         if (draft.editor_json) {
           editor.commands.setContent(draft.editor_json);
-        } else if (draft.html_content) {
-          editor.commands.setContent(draft.html_content);
         }
 
+        // Caller should handle subject/preview text
         setDraftId(draft.id);
         setLastSaved(new Date(draft.updated_at));
-        
-        return {
-          subject: draft.subject || '',
-          previewText: draft.preview_text || '',
-        };
+        setHasUnsavedChanges(false);
+        setStatus('idle');
       }
+      
+      // Reset loading flag after a short delay to ignore the update event from setContent
+      setTimeout(() => {
+        isLoadingDraft.current = false;
+        isFirstRender.current = false; // Also reset first render flag so edits are tracked
+      }, 100);
     } catch (error) {
       console.error('Draft load error:', error);
       toast.error('Failed to load draft');
+      isLoadingDraft.current = false;
     }
   }, [editor]);
 
@@ -208,13 +213,18 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
   useEffect(() => {
     if (!editor || !enabled) return;
 
-    // Skip auto-save on first render
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
     const handleUpdate = () => {
+      // Ignore updates while loading a draft
+      if (isLoadingDraft.current) {
+        return;
+      }
+      
+      // Skip auto-save on first render
+      if (isFirstRender.current) {
+        isFirstRender.current = false;
+        return;
+      }
+      
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }

@@ -29,7 +29,7 @@ export function SidebarProvider({
 	children,
 	open: openProp,
 	onOpenChange,
-	defaultOpen = true,
+	defaultOpen = false,
 }: SidebarProviderProps) {
 	const [uncontrolledOpen, setUncontrolledOpen] = React.useState<boolean>(
 		defaultOpen,

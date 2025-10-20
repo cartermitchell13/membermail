@@ -298,10 +298,10 @@ export function CampaignComposerProvider({
                     const hasContent = currentContent !== '' || subject !== '';
                     
                     if (!hasContent) {
-                        // Load the draft content
-                        if (mostRecent.editor_json) {
-                            editor.commands.setContent(mostRecent.editor_json);
-                        }
+                        // Use the loadDraft function to properly handle loading
+                        await loadDraft(mostRecent.id);
+                        
+                        // Load subject and preview text
                         if (mostRecent.subject) {
                             setSubject(mostRecent.subject);
                         }

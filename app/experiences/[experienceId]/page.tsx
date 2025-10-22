@@ -31,7 +31,9 @@ export default async function ExperiencePage({
     const { accessLevel } = result;
 
     if (result.hasAccess && accessLevel === "admin") {
-        redirect(`/experiences/${experienceId}/campaigns`);
+        // Redirect admins to the company dashboard instead of experience-specific page
+        const companyId = experience.company.id;
+        redirect(`/dashboard/${companyId}/campaigns`);
     }
 
     return (

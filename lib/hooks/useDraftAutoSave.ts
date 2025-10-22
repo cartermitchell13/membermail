@@ -6,21 +6,24 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Editor } from '@tiptap/core';
 import { toast } from 'sonner';
+import type { EmailStyles } from '@/components/email-builder/ui/EmailStylePanel';
 
 export type DraftData = {
   subject: string;
   previewText: string;
   htmlContent: string;
   editorJson: any;
+  emailStyles?: EmailStyles;
 };
 
 export type DraftAutoSaveConfig = {
   editor: Editor | null;
   draftId?: string;
   campaignId?: string;
-  experienceId: string;
+  companyId: string;
   subject: string;
   previewText: string;
+  emailStyles?: EmailStyles;
   debounceMs?: number; // Default 2000ms (2 seconds)
   enabled?: boolean; // Default true
   onSaveSuccess?: (draftId: string) => void;
@@ -34,9 +37,10 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
     editor,
     draftId: initialDraftId,
     campaignId,
-    experienceId,
+    companyId,
     subject,
     previewText,
+    emailStyles,
     debounceMs = 2000,
     enabled = true,
     onSaveSuccess,
@@ -53,12 +57,12 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
   const isLoadingDraft = useRef(false);
-  const latestValuesRef = useRef({ subject, previewText, draftId, campaignId });
+  const latestValuesRef = useRef({ subject, previewText, draftId, campaignId, emailStyles });
   
   // Update ref with latest values
   useEffect(() => {
-    latestValuesRef.current = { subject, previewText, draftId, campaignId };
-  }, [subject, previewText, draftId, campaignId]);
+    latestValuesRef.current = { subject, previewText, draftId, campaignId, emailStyles };
+  }, [subject, previewText, draftId, campaignId, emailStyles]);
 
   /**
    * Save draft to the server
@@ -69,13 +73,14 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
     try {
       setStatus('saving');
       
-      const { subject: currentSubject, previewText: currentPreviewText, draftId: currentDraftId, campaignId: currentCampaignId } = latestValuesRef.current;
+      const { subject: currentSubject, previewText: currentPreviewText, draftId: currentDraftId, campaignId: currentCampaignId, emailStyles: currentEmailStyles } = latestValuesRef.current;
       
       const draftData: DraftData = {
         subject: currentSubject,
         previewText: currentPreviewText,
         htmlContent: editor.getHTML(),
         editorJson: editor.getJSON(),
+        emailStyles: currentEmailStyles,
       };
 
       const response = await fetch('/api/drafts', {
@@ -84,7 +89,7 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
         body: JSON.stringify({
           id: currentDraftId,
           campaignId: currentCampaignId,
-          experienceId,
+          companyId,
           ...draftData,
         }),
       });
@@ -115,7 +120,7 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
       // Reset to idle after 5 seconds
       setTimeout(() => setStatus('idle'), 5000);
     }
-  }, [editor, enabled, experienceId, onSaveSuccess, onSaveError]);
+  }, [editor, enabled, companyId, onSaveSuccess, onSaveError]);
 
   /**
    * Schedule a debounced save

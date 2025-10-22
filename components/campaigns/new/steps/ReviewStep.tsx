@@ -3,7 +3,8 @@
 import { useCampaignComposer } from "../CampaignComposerProvider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useMemo } from "react";
+import { SimulateSendCard } from "@/components/campaigns/SimulateSendButton";
+import { useMemo, useState } from "react";
 
 export default function ReviewStep() {
     const {
@@ -21,7 +22,9 @@ export default function ReviewStep() {
         editor,
     } = useCampaignComposer();
     
-    if (currentStep !== 3) return null;
+    // Preserve hooks order: compute and call hooks unconditionally,
+    // and only decide what to render after hooks are called.
+    const isActive = currentStep === 3;
 
     // Calculate total recipients based on audience mode
     const recipients = audienceMode === 'all_active' 
@@ -98,6 +101,10 @@ export default function ReviewStep() {
     const errors = validationChecks.filter(c => c.severity === 'error' && !c.status);
     const warnings = validationChecks.filter(c => c.severity === 'warning' && !c.status);
     const isReady = errors.length === 0;
+
+    if (!isActive) {
+        return null;
+    }
 
     return (
         <div className="flex-1 overflow-y-auto bg-[#111111]">
@@ -357,9 +364,32 @@ export default function ReviewStep() {
                         )}
                     </CardContent>
                 </Card>
+
+                {/* Development Tools - Only visible in dev mode */}
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="pt-4 border-t border-white/10">
+                        <div className="text-xs text-white/40 mb-4 flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                            Development Tools
+                        </div>
+                        <p className="text-sm text-white/60 mb-4">
+                            Note: To simulate a campaign send, first create the campaign as a draft, then use the simulate button on the campaign list page or in the campaign details.
+                        </p>
+                        <div className="p-4 rounded-lg bg-orange-500/5 border border-orange-500/20">
+                            <div className="flex items-start gap-3">
+                                <svg className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div className="text-sm text-orange-400/90">
+                                    <strong>Testing Tip:</strong> After creating this campaign, you can simulate sending and generate mock analytics without actually sending emails. Look for the "Simulate Send (Dev)" button on the campaign page.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
-
-

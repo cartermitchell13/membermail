@@ -2,9 +2,12 @@
 
 import { useCampaignComposer } from "../CampaignComposerProvider";
 import { renderEmailFooterHtml } from "@/lib/email/footer";
+import { renderEmailWithStyles } from "@/lib/email/render-with-styles";
+import { EmailStylePanel } from "@/components/email-builder/ui/EmailStylePanel";
+import { Palette } from "lucide-react";
 
 export default function PreviewModal() {
-    const { showPreview, setShowPreview, previewMode, setPreviewMode, subject, previewText, editor, user, loadingUser } = useCampaignComposer();
+    const { showPreview, setShowPreview, previewMode, setPreviewMode, subject, previewText, editor, user, loadingUser, emailStyles, setEmailStyles, showStylePanel, setShowStylePanel } = useCampaignComposer();
     if (!showPreview) return null;
 
     // Generate sender name and email from user data
@@ -15,7 +18,9 @@ export default function PreviewModal() {
         const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
         const unsubscribeUrl = `${base}/api/unsubscribe?c=0&m=0&sig=demo`;
         const footer = renderEmailFooterHtml("MemberMail", unsubscribeUrl, null);
-        return `${editor?.getHTML() ?? ""}${footer}`;
+        const contentWithFooter = `${editor?.getHTML() ?? ""}${footer}`;
+        // Apply custom email styles to the content
+        return renderEmailWithStyles(contentWithFooter, emailStyles);
     })();
 
     return (
@@ -24,7 +29,7 @@ export default function PreviewModal() {
             onClick={() => setShowPreview(false)}
         >
             <div
-                className="bg-[#1a1a1a] rounded-xl w-full h-full overflow-hidden flex flex-col shadow-2xl border border-white/10"
+                className="bg-[#1a1a1a] rounded-xl w-full h-full overflow-hidden flex flex-col shadow-2xl border border-white/10 relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -52,6 +57,18 @@ export default function PreviewModal() {
                             >
                                 Mobile
                             </button>
+                            <div className="w-px h-6 bg-white/10 mx-1" />
+                            <button
+                                onClick={() => setShowStylePanel(!showStylePanel)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                    showStylePanel
+                                        ? "bg-[#FA4616] text-white"
+                                        : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                                }`}
+                            >
+                                <Palette className="w-4 h-4" />
+                                Styles
+                            </button>
                         </div>
                         <button
                             onClick={() => setShowPreview(false)}
@@ -64,7 +81,7 @@ export default function PreviewModal() {
                     </div>
                 </div>
 
-                {/* Viewport */}
+                {/* Main preview area */}
                 <div className="flex-1 overflow-y-auto bg-[#111111] p-8">
                     <div
                         className={`mx-auto transition-all duration-300 ${
@@ -108,17 +125,35 @@ export default function PreviewModal() {
                                 </div>
                             </div>
 
-                            {/* Content */}
-                            <div style={{ padding: "32px 24px", backgroundColor: "white" }}>
-                                <div style={{ display: "flex", justifyContent: "center" }}>
-                                    <div style={{ maxWidth: 600, width: "100%", boxSizing: "border-box", padding: "0 12px" }}>
-                                        <div className="prose max-w-none m-0" dangerouslySetInnerHTML={{ __html: emailHtml }} />
-                                    </div>
-                                </div>
+                            {/* Content - Render with custom styles applied */}
+                            <div style={{ padding: 0, backgroundColor: emailStyles.outsideBackground }}>
+                                <div dangerouslySetInnerHTML={{ __html: emailHtml }} />
                             </div>
                         </div>
                     </div>
                 </div>
+                
+                {/* Style panel popover - positioned absolute */}
+                {showStylePanel && (
+                    <>
+                        {/* Backdrop to close popover */}
+                        <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setShowStylePanel(false)}
+                        />
+                        {/* Popover panel */}
+                        <div 
+                            className="absolute top-16 right-8 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <EmailStylePanel
+                                editor={editor}
+                                emailStyles={emailStyles}
+                                onStyleChange={setEmailStyles}
+                            />
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

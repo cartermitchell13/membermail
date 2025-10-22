@@ -35,3 +35,63 @@ a
 
 
 For more info, see our docs at https://dev.whop.com/introduction
+
+## Testing & Development
+
+### Testing Campaigns Without Real Whop Members
+
+During development, you don't need a real Whop community with members to test campaign functionality. Use our seeding and simulation tools:
+
+#### Quick Start
+
+1. **Seed test member data:**
+   ```powershell
+   npm run seed:test
+   ```
+   This creates 50 fake members in your database with realistic attributes (tiers, statuses, engagement scores).
+
+2. **Check your test data:**
+   ```powershell
+   npm run check:test
+   ```
+   View a summary of your test communities, members, campaigns, and analytics.
+
+3. **Create and test campaigns:**
+   - Navigate to your dashboard
+   - Create a new campaign
+   - Compose your email content
+   - Use the "Simulate Send (Dev)" button to generate mock analytics without sending emails
+
+#### What Gets Created
+
+The seeding script generates:
+- ✅ 50 test members with realistic names and emails
+- ✅ Multiple membership tiers (basic, premium, vip, elite)
+- ✅ Various statuses (80% active, 15% cancelled, 5% paused)
+- ✅ Realistic join dates and activity timestamps
+- ✅ Engagement scores for testing analytics
+
+#### Simulate Campaign Sends
+
+Instead of burning through your Resend quota, simulate campaign sends:
+
+```typescript
+// After creating a campaign, simulate the send
+await fetch(`/api/dev/simulate-send?campaignId=${campaignId}`, {
+  method: 'POST'
+});
+```
+
+This generates realistic email events (sent, delivered, opened, clicked, bounced) with industry-standard engagement rates (~40% open, ~10% click).
+
+#### UI Component for Simulation
+
+In development mode, render the simulation button in your campaign interface:
+
+```tsx
+{process.env.NODE_ENV === 'development' && (
+  <SimulateSendButton campaignId={campaign.id} />
+)}
+```
+
+For complete testing documentation, see [TESTING_GUIDE.md](./TESTING_GUIDE.md)

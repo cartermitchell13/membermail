@@ -8,15 +8,14 @@ import { useCampaignComposer } from "../CampaignComposerProvider";
 import { toast } from "sonner";
 import ColumnsMenu from "./ColumnsMenu";
 import AISidebar from "../modals/AISidebar";
+import { EmailStylePanel } from "@/components/email-builder/ui/EmailStylePanel";
 import { useEffect } from "react";
+// Import resizable panels primitives to create a horizontal resizable split
+import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 
 export default function EditorCanvas() {
     const {
         editor,
-        showCtaLinkEditor,
-        setShowCtaLinkEditor,
-        ctaLinkValue,
-        setCtaLinkValue,
         setShowImageInput,
         setShowHandleMenu,
         showHandleMenu,
@@ -32,6 +31,10 @@ export default function EditorCanvas() {
         aiMode,
         setAiMode,
         sendAiMessage,
+        showStylePanel,
+        setShowStylePanel,
+        emailStyles,
+        setEmailStyles,
     } = useCampaignComposer();
 
     // Listen for clear context event
@@ -47,89 +50,24 @@ export default function EditorCanvas() {
     if (!editor) return null;
 
     return (
-        <div className="flex-1 min-h-0 flex overflow-hidden bg-[#111111]">
-            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide transition-all duration-300">
-                <div className="relative mx-auto w-full max-w-3xl px-6 py-8">
+        // Use a horizontal PanelGroup to allow the main editor and the AI sidebar/style panel
+        // to be resized by the user. Ensure it fills the available height so inner
+        // overflow containers can scroll correctly.
+        <PanelGroup direction="horizontal" className="h-full flex-1 min-h-0 flex overflow-hidden bg-[#111111]">
+            {/*
+              Left panel: main editor area. We give it a defaultSize that depends on
+              whether a sidebar is open. When both are closed, this panel takes 100% width.
+              When one is open, it starts at 70%.
+            */}
+            <Panel defaultSize={(showAiSidebar || showStylePanel) ? 70 : 100} minSize={20} order={1}>
+                {/*
+                  This wrapper must have a concrete height to enable vertical scrolling.
+                  Using h-full (instead of flex-1) inside the Panel ensures the browser
+                  can compute overflow and allow scrolling for tall editor content.
+                */}
+                <div className="h-full min-h-0 overflow-y-auto scrollbar-hide transition-all duration-300">
+                    <div className="relative mx-auto w-full max-w-3xl px-6 py-8">
                     <EditorContent editor={editor} />
-
-                {/* CTA Bubble */}
-                <BubbleMenu editor={editor} className="mm-bubble" shouldShow={() => editor.isActive('cta')}>
-                    <div className="flex items-center gap-2">
-                        {(() => {
-                            const attrs = (editor.getAttributes('cta') as any) || {};
-                            const currentAlign = String(attrs.align || 'left');
-                            const currentVariant = String(attrs.variant || 'primary');
-                            return (
-                                <>
-                                    {showCtaLinkEditor ? (
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                className="bg-transparent text-white/80 text-xs w-56 outline-none border border-white/10 rounded px-2 py-1"
-                                                placeholder="https://example.com"
-                                                value={ctaLinkValue}
-                                                onChange={(e) => setCtaLinkValue(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        editor.commands.setCTAUrl(ctaLinkValue.trim());
-                                                        setShowCtaLinkEditor(false);
-                                                    }
-                                                    if (e.key === 'Escape') setShowCtaLinkEditor(false);
-                                                }}
-                                            />
-                                            <button type="button" className="mm-bubble-btn is-active" title="Save" onMouseDown={(e) => e.preventDefault()} onClick={() => {
-                                                editor.commands.setCTAUrl(ctaLinkValue.trim());
-                                                setShowCtaLinkEditor(false);
-                                            }}>
-                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z"/></svg>
-                                            </button>
-                                            <button type="button" className="mm-bubble-btn" title="Cancel" onMouseDown={(e) => e.preventDefault()} onClick={() => setShowCtaLinkEditor(false)}>
-                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            className="mm-bubble-btn"
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onClick={() => {
-                                                const current = (editor.getAttributes('cta') as any)?.href || '';
-                                                setCtaLinkValue(current);
-                                                setShowCtaLinkEditor(true);
-                                            }}
-                                            title="Set Link"
-                                        >
-                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10.59 13.41a1.996 1.996 0 010-2.82l3.18-3.18a2 2 0 112.83 2.83l-1.06 1.06-.01.01-2.12 2.12a2 2 0 01-2.82-0.02z"/><path d="M13.41 10.59a1.996 1.996 0 010 2.82l-3.18 3.18a2 2 0 11-2.83-2.83l1.06-1.06.01-.01 2.12-2.12a2 2 0 012.82 0.02z"/></svg>
-                                        </button>
-                                    )}
-                                    <div className="mm-bubble-sep" />
-                                    <button type="button" className={`mm-bubble-btn ${currentAlign === 'left' ? 'is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.commands.setCTAAlign('left')} title="Align Left">
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h14v2H3V6zm0 4h10v2H3v-2zm0 4h14v2H3v-2zm0 4h10v2H3v-2z"/></svg>
-                                    </button>
-                                    <button type="button" className={`mm-bubble-btn ${currentAlign === 'center' ? 'is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.commands.setCTAAlign('center')} title="Align Center">
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 6h14v2H5V6zm3 4h8v2H8v-2zm-3 4h14v2H5v-2zm3 4h8v2H8v-2z"/></svg>
-                                    </button>
-                                    <button type="button" className={`mm-bubble-btn ${currentAlign === 'right' ? 'is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.commands.setCTAAlign('right')} title="Align Right">
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 6h14v2H7V6zm7 4h7v2h-7v-2zm-7 4h14v2H7v-2zm7 4h7v2h-7v-2z"/></svg>
-                                    </button>
-                                    <div className="mm-bubble-sep" />
-                                    <button type="button" className={`mm-bubble-btn ${currentVariant === 'primary' ? 'is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.commands.setCTAVariant('primary')} title="Primary">
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="2"/></svg>
-                                    </button>
-                                    <button type="button" className={`mm-bubble-btn ${currentVariant === 'secondary' ? 'is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.commands.setCTAVariant('secondary')} title="Secondary">
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="2"/></svg>
-                                    </button>
-                                    <button type="button" className={`mm-bubble-btn ${currentVariant === 'outline' ? 'is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.commands.setCTAVariant('outline')} title="Outline">
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="5" y="7" width="14" height="10" rx="2"/></svg>
-                                    </button>
-                                    <div className="mm-bubble-sep" />
-                                    <button type="button" className="mm-bubble-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => editor.commands.removeCTA()} title="Remove CTA">
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 7h12l-1 12H7L6 7zm3-3h6l1 2H8l1-2z"/></svg>
-                                    </button>
-                                </>
-                            );
-                        })()}
-                    </div>
-                </BubbleMenu>
 
                 {/* Image bubble */}
                 <BubbleMenu editor={editor} className="mm-bubble" shouldShow={() => editor.isActive('image')}>
@@ -229,20 +167,57 @@ export default function EditorCanvas() {
                         </div>
                     )}
                 </DragHandle>
+                    </div>
                 </div>
-            </div>
-            {/* AI Sidebar */}
-            <AISidebar
-                isOpen={showAiSidebar}
-                onClose={() => setShowAiSidebar(false)}
-                messages={aiMessages}
-                onSendMessage={sendAiMessage}
-                isStreaming={aiStreaming}
-                selectedText={aiSelectedText}
-                mode={aiMode}
-                onModeChange={setAiMode}
-            />
-        </div>
+            </Panel>
+
+            {/*
+              Only render the resize handle and right panel when a sidebar is open.
+              This keeps the layout identical to before when sidebars are closed.
+            */}
+            {(showAiSidebar || showStylePanel) && (
+                <>
+                    {/* Thin draggable bar between panels */}
+                    <PanelResizeHandle className="w-1 bg-white/10 hover:bg-white/20 transition-colors cursor-col-resize" />
+                    {/* Right panel: AI Sidebar or Style Panel */}
+                    <Panel defaultSize={30} minSize={20} order={2}>
+                        {showAiSidebar && (
+                            <AISidebar
+                                isOpen={showAiSidebar}
+                                onClose={() => setShowAiSidebar(false)}
+                                messages={aiMessages}
+                                onSendMessage={sendAiMessage}
+                                isStreaming={aiStreaming}
+                                selectedText={aiSelectedText}
+                                mode={aiMode}
+                                onModeChange={setAiMode}
+                            />
+                        )}
+                        {showStylePanel && (
+                            <div className="h-full overflow-y-auto bg-[#111111] p-4">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold text-white">Email Styles</h2>
+                                    <button
+                                        onClick={() => setShowStylePanel(false)}
+                                        className="text-white/60 hover:text-white transition-colors"
+                                        title="Close"
+                                    >
+                                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <EmailStylePanel
+                                    editor={editor}
+                                    emailStyles={emailStyles}
+                                    onStyleChange={setEmailStyles}
+                                />
+                            </div>
+                        )}
+                    </Panel>
+                </>
+            )}
+        </PanelGroup>
     );
 }
 

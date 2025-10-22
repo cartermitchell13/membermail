@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import EditorToolbar from "@/components/campaigns/new/steps/EditorToolbar";
 import EditorCanvas from "@/components/campaigns/new/steps/EditorCanvas";
 import YoutubeDialog from "@/components/campaigns/new/steps/YoutubeDialog";
+import ImageDialog from "@/components/campaigns/new/steps/ImageDialog";
 import SelectionFloatingMenu from "@/components/campaigns/new/steps/SelectionFloatingMenu";
 import SendTestEmailDialog from "@/components/campaigns/new/modals/SendTestEmailDialog";
 import { useCampaignComposer } from "@/components/campaigns/new/CampaignComposerProvider";
@@ -40,6 +41,7 @@ export default function ComposeStep() {
             <EditorToolbar />
             <EditorCanvas />
             <YoutubeDialog />
+            <ImageDialog />
             <SelectionFloatingMenu />
             <SendTestEmailDialog 
                 show={showTestEmailDialog} 

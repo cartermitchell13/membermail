@@ -75,32 +75,37 @@ export function SyncStatusIndicator({
       case 'saving':
         return {
           icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />,
-          text: 'Saving...',
+          text: 'Saving',
+          label: 'Saving',
           color: 'text-blue-400',
         };
       case 'saved':
         return {
           icon: <Check className="w-3.5 h-3.5" />,
           text: lastSaved ? `Saved ${timeAgo}` : 'Saved',
+          label: 'Saved',
           color: 'text-green-400',
         };
       case 'error':
         return {
           icon: <AlertCircle className="w-3.5 h-3.5" />,
           text: 'Save failed',
+          label: 'Save failed',
           color: 'text-red-400',
         };
       default:
         if (hasUnsavedChanges) {
           return {
             icon: <Cloud className="w-3.5 h-3.5" />,
-            text: 'Unsaved changes',
+            text: 'Not saved',
+            label: 'Not saved',
             color: 'text-yellow-400',
           };
         }
         return {
           icon: collaborationSynced ? <Cloud className="w-3.5 h-3.5" /> : <CloudOff className="w-3.5 h-3.5" />,
           text: lastSaved ? `Saved ${timeAgo}` : 'Ready',
+          label: lastSaved ? 'Saved' : 'Ready',
           color: 'text-white/60',
         };
     }
@@ -111,9 +116,14 @@ export function SyncStatusIndicator({
   return (
     <div className="flex items-center gap-3">
       {/* Save status */}
-      <div className={`flex items-center gap-1.5 text-sm ${status.color}`}>
+      <div className={`flex items-center gap-1.5 ${status.color}`}>
         {status.icon}
-        {!compact && <span>{status.text}</span>}
+        <div className="flex flex-col">
+          <span className="text-xs font-medium">{status.label}</span>
+          {!compact && lastSaved && draftStatus === 'saved' && (
+            <span className="text-[10px] opacity-70">{timeAgo}</span>
+          )}
+        </div>
       </div>
 
       {/* Collaboration indicator */}

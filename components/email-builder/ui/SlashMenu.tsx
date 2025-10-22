@@ -62,7 +62,26 @@ export default function SlashMenu({ items, command, selectedIndex = 0 }: any) {
     let currentIndex = 0;
 
     return (
-        <div ref={ref} className="w-[560px] rounded-lg border border-white/10 bg-[#1f1f1f] shadow-2xl">
+        <div 
+            ref={ref} 
+            className="w-[560px] rounded-lg border border-white/10 bg-[#1f1f1f] shadow-2xl"
+            onMouseDown={(e) => {
+                // Prevent the mousedown from bubbling to the document and triggering the click outside handler
+                e.stopPropagation();
+            }}
+            onMouseUp={(e) => {
+                // Also prevent mouseup from propagating
+                e.stopPropagation();
+            }}
+            onMouseEnter={(e) => {
+                // Prevent hover events from affecting the editor
+                e.stopPropagation();
+            }}
+            onMouseLeave={(e) => {
+                // Prevent hover events from affecting the editor
+                e.stopPropagation();
+            }}
+        >
             <div className="max-h-[500px] overflow-auto p-3">
                 {Object.entries(groupedItems).map(([category, categoryItems]) => (
                     <div key={category} className="mb-3 last:mb-0">

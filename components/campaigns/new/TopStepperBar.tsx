@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useCampaignComposer } from "./CampaignComposerProvider";
 
 export default function TopStepperBar() {
-    const { steps, currentStep, setCurrentStep, create, draftStatus, hasUnsavedChanges } = useCampaignComposer();
+    // Include setShowPreview so we can open the Preview modal from this top bar
+    const { steps, currentStep, setCurrentStep, create, draftStatus, hasUnsavedChanges, setShowPreview } = useCampaignComposer();
     const saving = false; // saving was local in original; create() handles toasts; button disabled logic can be extended later
 
     // Determine circle background color based on save status
@@ -18,13 +19,22 @@ export default function TopStepperBar() {
         return { backgroundColor: '#d1d5db' }; // grey
     };
 
+    // Get text label based on status
+    const getStatusLabel = () => {
+        if (draftStatus === 'error') return 'Save failed';
+        if (draftStatus === 'saving') return 'Saving';
+        if (draftStatus === 'saved' && !hasUnsavedChanges) return 'Saved';
+        if (hasUnsavedChanges) return 'Not saved';
+        return 'Ready';
+    };
+
     const isSaving = draftStatus === 'saving';
 
     return (
         <div className="border-b border-white/10 bg-black/40 backdrop-blur-sm shrink-0">
             <div className="px-8 py-3 flex items-center justify-between relative">
                 {/* Sync indicator - left side */}
-                <div className="flex items-center gap-3 min-w-[40px]">
+                <div className="flex items-center gap-2 min-w-[120px]">
                     <div className="relative flex items-center justify-center">
                         <div 
                             className={`w-3 h-3 rounded-full transition-colors duration-300 shadow-md ${isSaving ? 'animate-pulse' : ''}`}
@@ -41,6 +51,9 @@ export default function TopStepperBar() {
                             />
                         )}
                     </div>
+                    <span className="text-xs font-medium text-white/80">
+                        {getStatusLabel()}
+                    </span>
                 </div>
 
                 {/* Center stepper */}
@@ -54,7 +67,11 @@ export default function TopStepperBar() {
                         <Button variant="secondary" onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}>Back</Button>
                     )}
                     {currentStep < steps.length - 1 ? (
-                        <Button onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}>Next</Button>
+                        <>
+                            {/* Preview button: opens the full email preview modal so users can see their content rendered */}
+                            <Button variant="secondary" onClick={() => setShowPreview(true)}>Preview</Button>
+                            <Button onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}>Next</Button>
+                        </>
                     ) : (
                         <Button onClick={create} disabled={saving}>
                             {saving ? "Creating..." : "Create Campaign"}

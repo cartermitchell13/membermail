@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const { userId } = await whopSdk.verifyUserToken(headersList);
 
     const { searchParams } = new URL(req.url);
-    const experienceId = searchParams.get('experienceId');
+    const companyId = searchParams.get('companyId');
     const limit = Number.parseInt(searchParams.get('limit') || '50', 10);
 
     const supabase = getBrowserSupabaseClient();
@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
       .order('updated_at', { ascending: false })
       .limit(limit);
 
-    if (experienceId) {
-      query = query.eq('experience_id', experienceId);
+    if (companyId) {
+      query = query.eq('company_id', companyId);
     }
 
     const { data: drafts, error } = await query;
@@ -58,15 +58,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       campaignId,
-      experienceId,
+      companyId,
       subject,
       previewText,
       htmlContent,
       editorJson,
     } = body;
 
-    if (!experienceId) {
-      return NextResponse.json({ error: 'experienceId is required' }, { status: 400 });
+    if (!companyId) {
+      return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
     }
 
     const supabase = getBrowserSupabaseClient();
@@ -77,20 +77,20 @@ export async function POST(req: NextRequest) {
       .insert({
         campaign_id: campaignId || null,
         user_id: userId,
-        experience_id: experienceId,
+        company_id: companyId,
         subject: subject || '',
         preview_text: previewText || '',
         html_content: htmlContent || '',
         editor_json: editorJson || null,
         last_edited_by: userId,
         is_draft: true,
-      })
+      } as any)
       .select()
       .single();
 
     if (error) {
       console.error('Error creating draft:', error);
-      return NextResponse.json({ error: 'Failed to create draft' }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Failed to create draft' }, { status: 500 });
     }
 
     return NextResponse.json({ draft }, { status: 201 });
@@ -112,7 +112,7 @@ export async function PUT(req: NextRequest) {
     const {
       id,
       campaignId,
-      experienceId,
+      companyId,
       subject,
       previewText,
       htmlContent,
@@ -130,13 +130,13 @@ export async function PUT(req: NextRequest) {
       .from('drafts')
       .update({
         campaign_id: campaignId || null,
-        experience_id: experienceId,
+        company_id: companyId,
         subject: subject || '',
         preview_text: previewText || '',
         html_content: htmlContent || '',
         editor_json: editorJson || null,
         last_edited_by: userId,
-      })
+      } as any)
       .eq('id', id)
       .eq('user_id', userId) // Ensure user owns this draft
       .select()
@@ -144,7 +144,7 @@ export async function PUT(req: NextRequest) {
 
     if (error) {
       console.error('Error updating draft:', error);
-      return NextResponse.json({ error: 'Failed to update draft' }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Failed to update draft' }, { status: 500 });
     }
 
     return NextResponse.json({ draft });

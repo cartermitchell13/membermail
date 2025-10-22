@@ -400,7 +400,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .prose a:hover {
-	color: #E23F14;
+  color: #E23F14;
 }
 
 .prose strong {
@@ -436,4 +436,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Safari and Chrome */
+}
+
+/* Override CTA defaults inside CTACustomizer NodeView */
+.ProseMirror .mm-cta-node .mm-cta,
+.ProseMirror .mm-cta-node .mm-cta-primary,
+.ProseMirror .mm-cta-node .mm-cta-secondary,
+.ProseMirror .mm-cta-node .mm-cta-outline {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: inherit !important;
 }

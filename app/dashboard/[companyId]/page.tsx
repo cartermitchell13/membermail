@@ -60,11 +60,11 @@ export default async function DashboardPage({
 					<div className="flex items-center justify-between mb-4">
 						<Link
 							className="text-blue-600 underline"
-							href={`/experiences/${companyId}/campaigns/new`}
+							href={`/dashboard/${companyId}/campaigns/new`}
 						>
 							Create campaign
 						</Link>
-						<Link className="text-blue-600 underline" href={`/experiences/${companyId}/campaigns`}>
+						<Link className="text-blue-600 underline" href={`/dashboard/${companyId}/campaigns`}>
 							View all
 						</Link>
 					</div>

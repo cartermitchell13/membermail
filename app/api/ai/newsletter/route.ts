@@ -17,6 +17,9 @@ const ALLOWED_NODE_TYPES = new Set([
 	"columns",
 	"column",
 	"variable",
+ 	// NOTE: The system prompt instructs the model to optionally emit a `linkPlaceholder` block
+ 	// node with attrs { suggestedText }. We include it here so validator accepts it.
+ 	"linkPlaceholder",
 ]);
 
 // Additional attributes allowed on image nodes for AI-generated placeholders
@@ -93,10 +96,17 @@ function validateAllowedNodes(node: any): boolean {
 	if (type === "cta") {
 		const v = node.attrs?.variant;
 		const a = node.attrs?.align;
-		if (v && !["primary", "secondary", "outline"].includes(String(v))) return false;
-		if (a && !["left", "center", "right"].includes(String(a))) return false;
+		if (v && ["primary", "secondary", "outline"].includes(String(v)) === false) return false;
+		if (a && ["left", "center", "right"].includes(String(a)) === false) return false;
 		const href = node.attrs?.href;
 		if (href && typeof href !== "string") return false;
+	}
+	// Validate linkPlaceholder block nodes produced by the model when it suggests adding a link
+	// without knowing the final URL. It should include a string `suggestedText` and typically has no content.
+	if (type === "linkPlaceholder") {
+		// Ensure attrs exist and suggestedText is a non-empty string
+		const st = node.attrs?.suggestedText;
+		if (typeof st !== "string" || st.trim().length === 0) return false;
 	}
 	if (type === "variable") {
 		const varType = node.attrs?.type;
@@ -141,7 +151,7 @@ IMPORTANT: Include 1-2 image placeholders in EVERY newsletter for visual appeal.
 
 <tiptapDoc> must be a Tiptap JSON document with:
 - Root { type: "doc", content: Node[] }
-- Allowed nodes: doc, paragraph, text, heading(level 1-3), blockquote, bulletList, orderedList, listItem, image, youtube, horizontalRule, cta, columns, column, variable
+- Allowed nodes: doc, paragraph, text, heading(level 1-3), blockquote, bulletList, orderedList, listItem, image, youtube, horizontalRule, cta, columns, column, variable, linkPlaceholder
 - Allowed marks: bold, italic, strike, code, underline, link(href)
 - Headings: use level 1 for the title, level 2 for sections, level 3 for small subsections
 - Lists: use orderedList/bulletList with listItem children. Each listItem wraps a paragraph. NEVER put numbered text inside a paragraph.
@@ -150,6 +160,7 @@ IMPORTANT: Include 1-2 image placeholders in EVERY newsletter for visual appeal.
 - Sectioning: insert a horizontalRule between major sections where helpful.
 - CTA: near the end, include a cta node with attrs { href, variant: "primary"|"secondary"|"outline", align: "center" preferred } and button label as its text content.
 - Links: use the link mark with { href } on text ranges; use HTTPS urls.
+- Link Placeholders: When you want to suggest a link but don't have the exact URL, use { type: "linkPlaceholder", attrs: { suggestedText: "text for the link" } } as a block node. This creates an interactive placeholder where the user can enter the URL. Example: { type: "linkPlaceholder", attrs: { suggestedText: "Read the full article" } }. Use sparingly, only when a link would be valuable but the URL isn't known.
 - Variables: for personalization, use { type: "variable", attrs: { type: "name"|"email"|"username"|"company_name" } } inline nodes. These will be replaced with actual member data. Use naturally in greetings or signatures. Example: { type: "variable", attrs: { type: "name" } } for member's name.
 - Images: When an image would enhance the content (hero images, product showcases, feature highlights), insert an image placeholder node with a detailed generation prompt. IMPORTANT: Leave src empty and set isPlaceholder to true. Provide a detailed, specific suggestedPrompt that describes the desired image in detail. Example: { type: "image", attrs: { src: "", alt: "Modern drum kit in professional studio", suggestedPrompt: "Professional product photo of a modern electronic drum kit in a dark moody music studio, studio lighting, wide angle shot, high quality, 16:9 aspect ratio, cinematic", isPlaceholder: true } }. The suggestedPrompt should include: subject, setting/environment, lighting, style/mood, technical specs (aspect ratio, quality). Use 1-2 strategic images per newsletter, not too many.
 - Keep paragraphs short (1-3 sentences) and skimmable.

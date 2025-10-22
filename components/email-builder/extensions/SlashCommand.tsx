@@ -142,9 +142,11 @@ const items: Item[] = [
     category: "Media",
     icon: "image",
     run: (editor) => {
-      const url = window.prompt("Image URL");
-      if (!url) return;
-      editor.chain().focus().setImage({ src: url }).run();
+      // Insert an image placeholder that renders on the canvas
+      editor.commands.setImagePlaceholder({
+        alt: "Image",
+        suggestedPrompt: "Add a description or generate with AI",
+      });
     },
   },
   {
@@ -203,11 +205,13 @@ const SlashCommand = Extension.create({
         char: "/",
         startOfLine: false,
         allowSpaces: true,
-        allow: ({ editor, state, range }: any) => {
-          // Always keep the menu open as long as the slash command is active
-          // This prevents it from closing when hovering over other blocks
-          return true;
-        },
+        // Always keep the menu open once triggered
+        // The menu will only close through explicit user actions:
+        // - Clicking outside the menu
+        // - Selecting a menu item
+        // - Pressing Escape
+        // - Deleting the slash (which makes items empty and triggers natural close)
+        allow: () => true,
         command: ({ editor, range, props }: any) => {
           const item = props.items[props.selectedIndex];
           if (item) {
@@ -234,24 +238,21 @@ const SlashCommand = Extension.create({
           let component: ReactRenderer | null = null;
           let popup: HTMLDivElement | null = null;
           let manuallyDismissed = false;
+          let isActive = false;
+          let shouldStayOpen = true; // New flag to force menu to stay open
 
-          // Click outside handler
+          // Click outside handler - close menu when clicking outside the popup
           const handleClickOutside = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             
-            // Don't close if clicking inside the popup menu
+            // Only keep menu open if clicking inside the popup menu itself
             if (popup && popup.contains(target)) {
               return;
             }
             
-            // Don't close if clicking inside the editor
-            const editorElement = document.querySelector('.ProseMirror');
-            if (editorElement && editorElement.contains(target)) {
-              return;
-            }
-            
-            // Close if clicking truly outside both menu and editor
+            // Close the menu for any click outside the popup
             manuallyDismissed = true;
+            shouldStayOpen = false; // Explicitly allow closing
             document.removeEventListener('mousedown', handleClickOutside, true);
             if (popup && popup.parentNode) {
               popup.parentNode.removeChild(popup);
@@ -264,10 +265,13 @@ const SlashCommand = Extension.create({
           return {
             onStart: (props: any) => {
               manuallyDismissed = false;
+              isActive = true;
+              shouldStayOpen = true; // Force menu to stay open on start
               
               // Add dismiss callback to props
               const dismissCallback = () => {
                 manuallyDismissed = true;
+                shouldStayOpen = false; // Allow closing when item selected
               };
               
               component = new ReactRenderer(SlashMenu, { 
@@ -316,7 +320,7 @@ const SlashCommand = Extension.create({
               }
             },
             onUpdate: (props: any) => {
-              if (!component || !popup) return;
+              if (!component || !popup || !isActive) return;
               component.updateProps(props);
               const rect = props.clientRect?.();
               if (!rect) return;
@@ -355,6 +359,7 @@ const SlashCommand = Extension.create({
               // Handle Escape key
               if (props.event.key === "Escape") {
                 manuallyDismissed = true;
+                shouldStayOpen = false; // Allow closing on Escape
                 document.removeEventListener('mousedown', handleClickOutside, true);
                 if (popup && popup.parentNode) popup.parentNode.removeChild(popup);
                 component?.destroy();
@@ -366,12 +371,27 @@ const SlashCommand = Extension.create({
               // (closing the menu when slash is deleted)
               return false;
             },
-            onExit: () => {
+            onExit: (props: any) => {
+              // Only allow exit if we're active
+              if (!isActive) return;
+              
+              // Check if items are empty (happens when slash is deleted)
+              const hasItems = props?.items && props.items.length > 0;
+              
+              // If shouldStayOpen is true and we still have items, prevent closing
+              // This prevents auto-close from editor updates while keeping the slash present
+              if (shouldStayOpen && !manuallyDismissed && hasItems) {
+                console.log('SlashCommand: Preventing auto-close, menu should stay open');
+                return;
+              }
+              
+              isActive = false;
+              shouldStayOpen = false;
+              
               // Always clean up the click listener
               document.removeEventListener('mousedown', handleClickOutside, true);
               
-              // Always exit and clean up when Suggestion plugin calls onExit
-              // This happens when slash is deleted or range becomes invalid
+              // Clean up the popup and component
               if (popup && popup.parentNode) {
                 popup.parentNode.removeChild(popup);
               }

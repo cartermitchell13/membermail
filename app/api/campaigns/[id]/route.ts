@@ -29,17 +29,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             return new Response("Invalid content_json", { status: 400 });
         }
     }
+    // Build update payload without content_json for backward compatibility
+    const updatePayload: any = {
+        subject: body.subject,
+        preview_text: body.preview_text,
+        content_md: body.content_md,
+        html_content: compiledHtml,
+        audience: body.audience,
+        status: body.status,
+    };
+
     const { data, error } = await supabase
-		.from("campaigns")
-		.update({
-			subject: body.subject,
-			preview_text: body.preview_text,
-			content_md: body.content_md,
-            content_json: body.content_json,
-            html_content: compiledHtml,
-            audience: body.audience,
-			status: body.status,
-		})
+        .from("campaigns")
+        .update(updatePayload)
 		.eq("id", id)
 		.select()
 		.single();

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Megaphone, BarChart3, Users, Settings as SettingsIcon, Crown } from "lucide-react";
+import { Megaphone, BarChart3, Users, Settings as SettingsIcon, Crown, Bot } from "lucide-react";
 import {
 	Sidebar,
 	SidebarContent,
@@ -21,16 +21,19 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 type SidebarProps = {
-	experienceId: string;
+	experienceId?: string;
+	companyId?: string;
 };
 
-export default function AppSidebar({ experienceId }: SidebarProps) {
+export default function AppSidebar({ experienceId, companyId }: SidebarProps) {
 	const pathname = usePathname();
-	const base = `/experiences/${experienceId}`;
+	// Use dashboard path for company, experience path for experience
+	const base = companyId ? `/dashboard/${companyId}` : `/experiences/${experienceId}`;
     const { open } = useSidebar();
 
 	const items = [
 		{ label: "Campaigns", href: `${base}/campaigns`, match: `${base}/campaigns`, icon: Megaphone },
+		{ label: "Automations", href: `${base}/automations`, match: `${base}/automations`, icon: Bot },
 		{ label: "Metrics", href: `${base}/metrics`, match: `${base}/metrics`, icon: BarChart3 },
 		{ label: "Members", href: `${base}/members`, match: `${base}/members`, icon: Users },
 		{ label: "Settings", href: `${base}/settings`, match: `${base}/settings`, icon: SettingsIcon },

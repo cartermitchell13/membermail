@@ -9,6 +9,8 @@ import type { ChatMessage, AIMode } from "./modals/AISidebar";
 import { useDraftAutoSave, type DraftStatus } from "@/lib/hooks/useDraftAutoSave";
 import { useCollaboration } from "@/lib/hooks/useCollaboration";
 import type { AwarenessUser } from "@/lib/collaboration/RealtimeProvider";
+import { type EmailStyles, defaultEmailStyles } from "@/components/email-builder/ui/EmailStylePanel";
+import { embedStylesInHTML, extractEmailStyles } from "@/lib/email/render-with-styles";
 
 type AudienceMode = "all_active" | "tiers" | "active_recent";
 
@@ -28,7 +30,7 @@ type UserInfo = {
 } | null;
 
 export type CampaignComposerContextValue = {
-    experienceId: string;
+    companyId: string;
     router: ReturnType<typeof useRouter>;
     editor: Editor | null;
 
@@ -92,6 +94,12 @@ export type CampaignComposerContextValue = {
     setAiMode: (mode: AIMode) => void;
     aiStreaming: boolean;
     sendAiMessage: (prompt: string, context?: { selectedText: string; mode: AIMode }) => Promise<void>;
+
+    // Email Styles
+    showStylePanel: boolean;
+    setShowStylePanel: (v: boolean) => void;
+    emailStyles: EmailStyles;
+    setEmailStyles: (styles: EmailStyles) => void;
 
     // Image/Youtube dialogs
     showYoutubeInput: boolean;
@@ -164,10 +172,10 @@ export type CampaignComposerContextValue = {
 const ComposerContext = createContext<CampaignComposerContextValue | null>(null);
 
 export function CampaignComposerProvider({
-    experienceId,
+    companyId,
     children,
 }: {
-    experienceId: string;
+    companyId: string;
     children: React.ReactNode;
 }) {
     const router = useRouter();
@@ -214,6 +222,10 @@ export function CampaignComposerProvider({
     const [aiSelectedText, setAiSelectedText] = useState<string | null>(null);
     const [aiMode, setAiMode] = useState<AIMode>("generate");
     const [aiStreaming, setAiStreaming] = useState(false);
+
+    // Email Styles state
+    const [showStylePanel, setShowStylePanel] = useState(false);
+    const [emailStyles, setEmailStyles] = useState<EmailStyles>(defaultEmailStyles);
 
     // Image/Youtube dialogs
     const [showYoutubeInput, setShowYoutubeInput] = useState(false);
@@ -270,9 +282,10 @@ export function CampaignComposerProvider({
         loadDraft,
     } = useDraftAutoSave({
         editor,
-        experienceId,
+        companyId,
         subject,
         previewText,
+        emailStyles,
         debounceMs: 2000,
         enabled: true,
     });
@@ -284,7 +297,7 @@ export function CampaignComposerProvider({
             if (!editor || hasLoadedDraft.current) return;
 
             try {
-                const response = await fetch(`/api/drafts?experienceId=${experienceId}`);
+                const response = await fetch(`/api/drafts?companyId=${companyId}`);
                 if (!response.ok) return;
 
                 const { drafts } = await response.json();
@@ -309,6 +322,14 @@ export function CampaignComposerProvider({
                             setPreviewText(mostRecent.preview_text);
                         }
                         
+                        // Load email styles if they exist in the HTML content
+                        if (mostRecent.html_content) {
+                            const extractedStyles = extractEmailStyles(mostRecent.html_content);
+                            if (extractedStyles) {
+                                setEmailStyles(extractedStyles);
+                            }
+                        }
+                        
                         hasLoadedDraft.current = true;
                         console.log('✅ Loaded most recent draft:', mostRecent.id);
                     }
@@ -322,7 +343,7 @@ export function CampaignComposerProvider({
         const timeout = setTimeout(loadMostRecentDraft, 500);
         return () => clearTimeout(timeout);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editor, experienceId]); // Only run once when editor is ready
+    }, [editor, companyId]); // Only run once when editor is ready
 
     // Collaboration integration
     const {
@@ -330,7 +351,7 @@ export function CampaignComposerProvider({
         collaborators,
     } = useCollaboration({
         editor,
-        documentId: `campaign:${experienceId}:new`,
+        documentId: `campaign:${companyId}:new`,
         userId: user?.id || 'anonymous',
         userName: user?.name || 'Guest',
         enabled: true,
@@ -353,6 +374,20 @@ export function CampaignComposerProvider({
         }
         fetchUser();
     }, []);
+
+    // Effects: editor content prefill from draft or template
+    // Also support Automations presets: when navigating from the Automations page,
+    // the URL may include `prefillSubject` and/or `prefillPreview`. We set them once
+    // here so they appear immediately in the editor. This also prevents the draft
+    // autoload effect (below) from overriding, since it only runs when subject is empty.
+    useEffect(() => {
+        // Only apply if fields are empty to avoid clobbering user edits
+        const s = searchParams.get("prefillSubject");
+        const p = searchParams.get("prefillPreview");
+        if (s && !subject) setSubject(s);
+        if (p && !previewText) setPreviewText(p);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
     // Effects: editor content prefill from draft or template
     useEffect(() => {
@@ -415,7 +450,7 @@ export function CampaignComposerProvider({
         (async () => {
             try {
                 setLoadingAudience(true);
-                const res = await fetch(`/api/members?companyId=${experienceId}&limit=1`);
+                const res = await fetch(`/api/members?companyId=${companyId}&limit=1`);
                 if (!res.ok) return;
                 const data = await res.json();
                 if (ignore) return;
@@ -431,7 +466,7 @@ export function CampaignComposerProvider({
         return () => {
             ignore = true;
         };
-    }, [experienceId]);
+    }, [companyId]);
 
     // Fetch 30d active when needed
     useEffect(() => {
@@ -439,7 +474,7 @@ export function CampaignComposerProvider({
         (async () => {
             if (audienceMode !== "active_recent") return;
             try {
-                const res = await fetch(`/api/members?companyId=${experienceId}&status=active&lastActiveDays=30&limit=1`);
+                const res = await fetch(`/api/members?companyId=${companyId}&status=active&lastActiveDays=30&limit=1`);
                 if (!res.ok) return;
                 const data = await res.json();
                 if (ignore) return;
@@ -450,7 +485,7 @@ export function CampaignComposerProvider({
         return () => {
             ignore = true;
         };
-    }, [audienceMode, experienceId]);
+    }, [audienceMode, companyId]);
 
     // Per-tier counts when selecting tiers
     useEffect(() => {
@@ -463,7 +498,7 @@ export function CampaignComposerProvider({
                 const results = await Promise.all(
                     missing.map(async (t) => {
                         const r = await fetch(
-                            `/api/members?companyId=${experienceId}&status=active&tier=${encodeURIComponent(t)}&limit=1`
+                            `/api/members?companyId=${companyId}&status=active&tier=${encodeURIComponent(t)}&limit=1`
                         );
                         if (!r.ok) return [t, 0] as const;
                         const d = await r.json();
@@ -482,28 +517,33 @@ export function CampaignComposerProvider({
         return () => {
             ignore = true;
         };
-    }, [audienceMode, selectedTiers, experienceId, counts.tierActiveCounts]);
+    }, [audienceMode, selectedTiers, companyId, counts.tierActiveCounts]);
 
     // Actions
     const create = useCallback(async () => {
         if (!subject.trim()) {
             toast.error("Please add a subject line");
+            return;
         }
         try {
-            const resolveRes = await fetch(`/api/communities/resolve?companyId=${experienceId}`);
+            const resolveRes = await fetch(`/api/communities/resolve?companyId=${companyId}`);
             const { id: community_id } = resolveRes.ok ? await resolveRes.json() : { id: 1 };
             const audiencePayload = (() => {
                 if (audienceMode === "all_active") return { type: "all_active" } as const;
                 if (audienceMode === "active_recent") return { type: "active_recent", days: 30 } as const;
                 return { type: "tiers", tiers: selectedTiers } as const;
             })();
+            // Embed styles in HTML before saving
+            const htmlContent = editor?.getHTML() ?? "";
+            const htmlWithStyles = embedStylesInHTML(htmlContent, emailStyles);
+            
             const res = await fetch("/api/campaigns", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     subject,
                     preview_text: previewText,
-                    html_content: editor?.getHTML() ?? "",
+                    html_content: htmlWithStyles,
                     community_id,
                     audience: audiencePayload,
                 }),
@@ -511,14 +551,14 @@ export function CampaignComposerProvider({
             if (res.ok) {
                 const data = await res.json();
                 toast.success("Campaign created successfully!");
-                router.push(`/experiences/${experienceId}/campaigns/${data.campaign.id}`);
+                router.push(`/dashboard/${companyId}/campaigns/${data.campaign.id}`);
             } else {
                 toast.error("Failed to create campaign");
             }
         } catch (error) {
             toast.error("An error occurred");
         }
-    }, [experienceId, audienceMode, selectedTiers, subject, previewText, editor, router]);
+    }, [companyId, audienceMode, selectedTiers, subject, previewText, editor, router, emailStyles]);
 
     const saveAsTemplate = useCallback(async () => {
         if (!editor) return;
@@ -547,10 +587,20 @@ export function CampaignComposerProvider({
         }
     }, [editor, templateName]);
 
+    /**
+     * Insert a link placeholder into the editor
+     */
     const addLink = useCallback(() => {
         if (!editor) return;
-        const url = window.prompt("Enter URL");
-        if (url) editor.chain().focus().setLink({ href: url }).run();
+        
+        // Get selected text if any to use as suggested text
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to, ' ');
+        
+        // Insert link placeholder node
+        editor.chain().focus().setLinkPlaceholder({ 
+            suggestedText: selectedText || '' 
+        }).run();
     }, [editor]);
 
     const addImage = useCallback(() => {
@@ -894,7 +944,7 @@ export function CampaignComposerProvider({
 
     const value = useMemo<CampaignComposerContextValue>(
         () => ({
-            experienceId,
+            companyId,
             router,
             editor: (editor as any) ?? null,
             user,
@@ -946,6 +996,10 @@ export function CampaignComposerProvider({
             setAiMode,
             aiStreaming,
             sendAiMessage,
+            showStylePanel,
+            setShowStylePanel,
+            emailStyles,
+            setEmailStyles,
             showYoutubeInput,
             setShowYoutubeInput,
             youtubeUrl,
@@ -1003,7 +1057,7 @@ export function CampaignComposerProvider({
             deleteNearestBlock,
         }),
         [
-            experienceId,
+            companyId,
             router,
             editor,
             user,
@@ -1037,6 +1091,8 @@ export function CampaignComposerProvider({
             aiMode,
             aiStreaming,
             sendAiMessage,
+            showStylePanel,
+            emailStyles,
             showYoutubeInput,
             youtubeUrl,
             showImageInput,

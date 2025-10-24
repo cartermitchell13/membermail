@@ -4,7 +4,7 @@ import { useCampaignComposer } from "../CampaignComposerProvider";
 import { toast } from "sonner";
 
 export default function TemplatePicker() {
-    const { showTemplatePicker, setShowTemplatePicker, templates, loadingTemplates, categoryFilter, setCategoryFilter, setPreviewTemplateHtml, editor } = useCampaignComposer();
+    const { showTemplatePicker, setShowTemplatePicker, templates, loadingTemplates, categoryFilter, setCategoryFilter, setPreviewTemplateHtml, applyPrefillHtml } = useCampaignComposer();
     if (!showTemplatePicker) return null;
     return (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex" onClick={() => setShowTemplatePicker(false)}>
@@ -40,7 +40,7 @@ export default function TemplatePicker() {
                                             <div className="font-medium truncate">{t.name}</div>
                                             <div className="flex gap-2">
                                                 <button className="px-3 py-1 rounded bg-[#FA4616] text-white hover:bg-[#E23F14] text-sm" onClick={() => {
-                                                    if (editor) editor.commands.setContent(t.html_content || "");
+                                                    applyPrefillHtml(String(t.html_content || ""));
                                                     toast.success("Template applied");
                                                     setShowTemplatePicker(false);
                                                 }}>Use</button>

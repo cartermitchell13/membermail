@@ -1,5 +1,6 @@
 import AppSidebar from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { ensureCompanyWebhook } from "@/lib/whop/webhooks";
 
 export default async function DashboardLayout({
 	children,
@@ -9,6 +10,16 @@ export default async function DashboardLayout({
 	params: Promise<{ companyId: string }>;
 }) {
 	const { companyId } = await params;
+
+	// Ensure the Whop webhook is created/updated for this company when a dashboard route is loaded
+	try {
+		await ensureCompanyWebhook(companyId);
+	} catch (err) {
+		console.warn("[DashboardLayout] ensureCompanyWebhook failed", {
+			companyId,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
 	return (
 		<SidebarProvider>
 			<div className="min-h-screen bg-black flex">

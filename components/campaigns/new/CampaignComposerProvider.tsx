@@ -29,6 +29,23 @@ type UserInfo = {
     profilePictureUrl: string | null;
 } | null;
 
+type SenderIdentityState = {
+    displayName: string | null;
+    mailUsername: string | null;
+    setupComplete: boolean;
+};
+
+export type AutomationBlueprintPrefill = {
+    sequenceId: string;
+    title: string;
+    schedule: string[];
+    goals: string[];
+    prefillSubject?: string;
+    prefillPreview?: string;
+    prefillHtml?: string;
+    aiPromptTemplate?: string;
+};
+
 export type CampaignComposerContextValue = {
     companyId: string;
     router: ReturnType<typeof useRouter>;
@@ -48,6 +65,21 @@ export type CampaignComposerContextValue = {
     setSubject: (s: string) => void;
     previewText: string;
     setPreviewText: (s: string) => void;
+    automationBlueprint: AutomationBlueprintPrefill | null;
+    showAutomationBanner: boolean;
+    dismissAutomationBanner: () => void;
+    sendMode: "manual" | "automation";
+    setSendMode: (mode: "manual" | "automation") => void;
+    triggerEvent: string | null;
+    setTriggerEvent: (event: string | null) => void;
+    triggerDelayValue: number;
+    setTriggerDelayValue: (value: number) => void;
+    triggerDelayUnit: "minutes" | "hours" | "days";
+    setTriggerDelayUnit: (unit: "minutes" | "hours" | "days") => void;
+    automationStatus: "draft" | "active" | "paused" | "archived";
+    setAutomationStatus: (status: "draft" | "active" | "paused" | "archived") => void;
+    automationSequenceId: number | null;
+    setAutomationSequenceId: (value: number | null) => void;
 
     // Draft & Sync
     draftStatus: DraftStatus;
@@ -55,6 +87,8 @@ export type CampaignComposerContextValue = {
     hasUnsavedChanges: boolean;
     draftId: string | undefined;
     saveDraft: () => void;
+    openDraftById: (id: string) => Promise<void>;
+    deleteDraftById: (id: string) => Promise<void>;
     collaborationSynced: boolean;
     collaborators: AwarenessUser[];
 
@@ -83,6 +117,15 @@ export type CampaignComposerContextValue = {
     setShowAiDialog: (v: boolean) => void;
     showTestEmailDialog: boolean;
     setShowTestEmailDialog: (v: boolean) => void;
+
+    // Start/Drafts modals
+    showStartSourceModal: boolean;
+    setShowStartSourceModal: (v: boolean) => void;
+    showDraftsModal: boolean;
+    setShowDraftsModal: (v: boolean) => void;
+
+    // Prefill helper for templates/automation
+    applyPrefillHtml: (html: string, opts?: { subject?: string; preview?: string }) => void;
 
     // AI Sidebar (new Cursor-style interface)
     showAiSidebar: boolean;
@@ -153,6 +196,11 @@ export type CampaignComposerContextValue = {
     quietHoursEnabled: boolean;
     setQuietHoursEnabled: (b: boolean) => void;
 
+    // Sender identity
+    senderIdentity: SenderIdentityState;
+    loadingSenderIdentity: boolean;
+    refreshSenderIdentity: () => Promise<void>;
+
     // Actions
     create: () => Promise<void>;
     saveAsTemplate: () => Promise<void>;
@@ -181,6 +229,12 @@ export function CampaignComposerProvider({
     const router = useRouter();
     const searchParams = useSearchParams();
     const editor = useCampaignEditor();
+    const [senderIdentity, setSenderIdentity] = useState<SenderIdentityState>({
+        displayName: null,
+        mailUsername: null,
+        setupComplete: false,
+    });
+    const [loadingSenderIdentity, setLoadingSenderIdentity] = useState<boolean>(true);
 
     // Steps
     const steps = useMemo(
@@ -188,6 +242,7 @@ export function CampaignComposerProvider({
             { key: "compose", label: "Compose" },
             { key: "audience", label: "Audience" },
             { key: "settings", label: "Settings" },
+            { key: "automation", label: "Automation" },
             { key: "review", label: "Review" },
         ],
         []
@@ -199,8 +254,48 @@ export function CampaignComposerProvider({
     const [loadingUser, setLoadingUser] = useState(true);
 
     // Compose state
-    const [subject, setSubject] = useState("");
-    const [previewText, setPreviewText] = useState("");
+    const refreshSenderIdentity = useCallback(async () => {
+        try {
+            setLoadingSenderIdentity(true);
+            const res = await fetch(`/api/sender-identity?companyId=${companyId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setSenderIdentity({
+                    displayName: data.display_name ?? null,
+                    mailUsername: data.mail_username ?? null,
+                    setupComplete: Boolean(data.setupComplete && data.display_name && data.mail_username),
+                });
+            }
+        } finally {
+            setLoadingSenderIdentity(false);
+        }
+    }, [companyId]);
+
+    useEffect(() => {
+        void refreshSenderIdentity();
+    }, [refreshSenderIdentity]);
+
+    const [subject, setSubjectState] = useState("");
+    const [previewText, setPreviewTextState] = useState("");
+    const [automationBlueprint, setAutomationBlueprint] = useState<AutomationBlueprintPrefill | null>(null);
+    const [showAutomationBanner, setShowAutomationBanner] = useState(false);
+    const dismissAutomationBanner = useCallback(() => setShowAutomationBanner(false), []);
+    const [sendMode, setSendMode] = useState<"manual" | "automation">("manual");
+    const [triggerEvent, setTriggerEvent] = useState<string | null>(null);
+    const [triggerDelayValue, setTriggerDelayValue] = useState<number>(0);
+    const [triggerDelayUnit, setTriggerDelayUnit] = useState<"minutes" | "hours" | "days">("minutes");
+    const [automationStatus, setAutomationStatus] = useState<"draft" | "active" | "paused" | "archived">("draft");
+    const [automationSequenceId, setAutomationSequenceId] = useState<number | null>(null);
+
+    // Start flow / drafts modals
+    const [showStartSourceModal, setShowStartSourceModal] = useState<boolean>(false);
+    const [showDraftsModal, setShowDraftsModal] = useState<boolean>(false);
+
+    // Autosave gating
+    const [userInteracted, setUserInteracted] = useState<boolean>(false);
+    const prefillActiveRef = useRef<boolean>(false);
+    const [showLeavePrompt, setShowLeavePrompt] = useState<boolean>(false);
+    const pendingHrefRef = useRef<string | null>(null);
 
     // Modals / dialogs
     const [showPreview, setShowPreview] = useState(false);
@@ -280,6 +375,7 @@ export function CampaignComposerProvider({
         draftId,
         saveDraft,
         loadDraft,
+        deleteDraft,
     } = useDraftAutoSave({
         editor,
         companyId,
@@ -288,62 +384,10 @@ export function CampaignComposerProvider({
         emailStyles,
         debounceMs: 2000,
         enabled: true,
+        canAutoSave: userInteracted,
     });
 
-    // Load most recent draft on mount
-    const hasLoadedDraft = useRef(false);
-    useEffect(() => {
-        async function loadMostRecentDraft() {
-            if (!editor || hasLoadedDraft.current) return;
-
-            try {
-                const response = await fetch(`/api/drafts?companyId=${companyId}`);
-                if (!response.ok) return;
-
-                const { drafts } = await response.json();
-                
-                // Get the most recent draft
-                if (drafts && drafts.length > 0) {
-                    const mostRecent = drafts[0]; // API returns sorted by updated_at DESC
-                    
-                    // Only auto-load if editor is empty
-                    const currentContent = editor.getText().trim();
-                    const hasContent = currentContent !== '' || subject !== '';
-                    
-                    if (!hasContent) {
-                        // Use the loadDraft function to properly handle loading
-                        await loadDraft(mostRecent.id);
-                        
-                        // Load subject and preview text
-                        if (mostRecent.subject) {
-                            setSubject(mostRecent.subject);
-                        }
-                        if (mostRecent.preview_text) {
-                            setPreviewText(mostRecent.preview_text);
-                        }
-                        
-                        // Load email styles if they exist in the HTML content
-                        if (mostRecent.html_content) {
-                            const extractedStyles = extractEmailStyles(mostRecent.html_content);
-                            if (extractedStyles) {
-                                setEmailStyles(extractedStyles);
-                            }
-                        }
-                        
-                        hasLoadedDraft.current = true;
-                        console.log('✅ Loaded most recent draft:', mostRecent.id);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to load draft:', error);
-            }
-        }
-
-        // Wait a bit for editor to be ready
-        const timeout = setTimeout(loadMostRecentDraft, 500);
-        return () => clearTimeout(timeout);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editor, companyId]); // Only run once when editor is ready
+    // Load most recent draft on mount — removed (we now require explicit draft selection)
 
     // Collaboration integration
     const {
@@ -375,6 +419,32 @@ export function CampaignComposerProvider({
         fetchUser();
     }, []);
 
+    // Effects: load automation blueprint context from session storage
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const raw = sessionStorage.getItem("automation_blueprint_prefill");
+        if (!raw) return;
+        try {
+            const parsed = JSON.parse(raw) as AutomationBlueprintPrefill;
+            sessionStorage.removeItem("automation_blueprint_prefill");
+            setAutomationBlueprint(parsed);
+            setShowAutomationBanner(true);
+            setSendMode("automation");
+            setAutomationStatus("active");
+            if (!subject && parsed.prefillSubject) {
+                setSubjectState(parsed.prefillSubject);
+            }
+            if (!previewText && parsed.prefillPreview) {
+                setPreviewTextState(parsed.prefillPreview);
+            }
+            prefillActiveRef.current = true;
+        } catch (error) {
+            console.error("Failed to parse automation blueprint prefill:", error);
+            sessionStorage.removeItem("automation_blueprint_prefill");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subject, previewText]);
+
     // Effects: editor content prefill from draft or template
     // Also support Automations presets: when navigating from the Automations page,
     // the URL may include `prefillSubject` and/or `prefillPreview`. We set them once
@@ -384,8 +454,17 @@ export function CampaignComposerProvider({
         // Only apply if fields are empty to avoid clobbering user edits
         const s = searchParams.get("prefillSubject");
         const p = searchParams.get("prefillPreview");
-        if (s && !subject) setSubject(s);
-        if (p && !previewText) setPreviewText(p);
+        const seq = searchParams.get("automationSequenceId");
+        if (s && !subject) setSubjectState(s);
+        if (p && !previewText) setPreviewTextState(p);
+        if (seq) {
+            const parsed = Number(seq);
+            if (!Number.isNaN(parsed)) {
+                setAutomationSequenceId(parsed);
+                setSendMode("automation");
+                setAutomationStatus("active");
+            }
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
@@ -394,6 +473,7 @@ export function CampaignComposerProvider({
         if (!editor) return;
         const draftContent = sessionStorage.getItem("draft_email_content");
         if (draftContent) {
+            prefillActiveRef.current = true;
             editor.commands.setContent(draftContent);
             sessionStorage.removeItem("draft_email_content");
             return;
@@ -404,12 +484,74 @@ export function CampaignComposerProvider({
                 .then((r) => r.json())
                 .then((t) => {
                     if (t?.html_content) {
+                        prefillActiveRef.current = true;
                         editor.commands.setContent(t.html_content);
                     }
                 })
                 .catch(() => {});
         }
     }, [editor, searchParams]);
+
+    // Start source modal logic and deep-link handlers
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const source = searchParams.get("source");
+        const directDraftId = searchParams.get("draftId");
+        const hasSessionPrefill = Boolean(sessionStorage.getItem("draft_email_content"));
+        const hasQueryPrefill = Boolean(searchParams.get("prefillSubject") || searchParams.get("prefillPreview") || searchParams.get("templateId"));
+
+        if (directDraftId) {
+            void (async () => {
+                await openDraftById(directDraftId);
+                setShowStartSourceModal(false);
+            })();
+            return;
+        }
+        if (source === "blank") {
+            setShowStartSourceModal(false);
+            return;
+        }
+        if (source === "drafts") {
+            setShowDraftsModal(true);
+            setShowStartSourceModal(false);
+            return;
+        }
+        if (hasSessionPrefill || hasQueryPrefill) {
+            setShowStartSourceModal(false);
+            return;
+        }
+        setShowStartSourceModal(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+    // Open a draft by id (helper for modal and deep-link)
+    const openDraftById = useCallback(async (id: string) => {
+        try {
+            const res = await fetch(`/api/drafts/${id}?companyId=${companyId}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const d = data.draft as { id: string; subject?: string; preview_text?: string; html_content?: string };
+            prefillActiveRef.current = true;
+            await loadDraft(id);
+            if (d.subject) setSubjectState(d.subject);
+            if (d.preview_text) setPreviewTextState(d.preview_text);
+            if (d.html_content) {
+                const extractedStyles = extractEmailStyles(d.html_content);
+                if (extractedStyles) setEmailStyles(extractedStyles);
+            }
+            setTimeout(() => { prefillActiveRef.current = false; }, 100);
+        } catch (e) {
+            console.error('Failed to open draft', e);
+        }
+    }, [companyId, loadDraft, setEmailStyles]);
+
+    const deleteDraftById = useCallback(async (id: string) => {
+        try {
+            await fetch(`/api/drafts/${id}?companyId=${companyId}`, { method: 'DELETE' });
+        } catch (e) {
+            console.error('Failed to delete draft', e);
+        }
+    }, [companyId]);
 
     // Load templates on open
     useEffect(() => {
@@ -443,6 +585,111 @@ export function CampaignComposerProvider({
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [showPreview]);
+
+    // Wrap setters to mark interaction after prefill
+    const setSubject = useCallback((s: string) => {
+        setSubjectState(s);
+        if (!prefillActiveRef.current) setUserInteracted(true);
+    }, []);
+    const setPreviewText = useCallback((s: string) => {
+        setPreviewTextState(s);
+        if (!prefillActiveRef.current) setUserInteracted(true);
+    }, []);
+
+    // Helper for applying prefill HTML (templates/automation)
+    const applyPrefillHtml = useCallback((html: string, opts?: { subject?: string; preview?: string }) => {
+        if (!editor) return;
+        prefillActiveRef.current = true;
+        editor.commands.setContent(html || "");
+        if (opts?.subject !== undefined) setSubjectState(opts.subject);
+        if (opts?.preview !== undefined) setPreviewTextState(opts.preview);
+        setTimeout(() => { prefillActiveRef.current = false; }, 0);
+    }, [editor]);
+
+    // Consider any editor update (outside prefill) as interaction
+    useEffect(() => {
+        if (!editor) return;
+        const onUpdate = () => {
+            if (!prefillActiveRef.current) setUserInteracted(true);
+        };
+        editor.on('update', onUpdate);
+        return () => { editor.off('update', onUpdate); };
+    }, [editor]);
+
+    // Intercept anchor navigations to show leave prompt when there are changes
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+            if (!anchor) return;
+            const href = anchor.getAttribute('href');
+            if (!href || href.startsWith('#') || anchor.target === '_blank') return;
+            // Determine if we should prompt
+            const shouldPrompt = (userInteracted || hasUnsavedChanges);
+            if (!shouldPrompt) return;
+            // Prevent navigation and show prompt
+            e.preventDefault();
+            pendingHrefRef.current = anchor.href;
+            setShowLeavePrompt(true);
+        };
+        document.addEventListener('click', handler, true);
+        return () => document.removeEventListener('click', handler, true);
+    }, [userInteracted, hasUnsavedChanges]);
+
+    // Leave prompt modal component (inline)
+    function LeavePromptModal() {
+        if (!showLeavePrompt) return null;
+        return (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex" onClick={() => setShowLeavePrompt(false)}>
+                <div className="m-auto w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                    <div className="px-5 py-4 border-b border-white/10">
+                        <h3 className="text-lg font-semibold">Save as draft?</h3>
+                        <p className="text-sm text-white/60 mt-1">You have unsaved changes. Save this as a draft before leaving?</p>
+                    </div>
+                    <div className="p-4 flex items-center justify-end gap-2">
+                        <button
+                            className="px-3 py-1.5 rounded border border-white/20 text-white hover:bg-white/10 text-sm"
+                            onClick={() => setShowLeavePrompt(false)}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            className="px-3 py-1.5 rounded text-white bg-red-600/80 hover:bg-red-600 text-sm"
+                            onClick={async () => {
+                                try {
+                                    if (draftId) {
+                                        await deleteDraft();
+                                    }
+                                } catch {}
+                                const href = pendingHrefRef.current;
+                                setShowLeavePrompt(false);
+                                pendingHrefRef.current = null;
+                                if (href) window.location.href = href;
+                            }}
+                        >
+                            Discard
+                        </button>
+                        <button
+                            className="px-3 py-1.5 rounded text-white bg-[#FA4616] hover:bg-[#E23F14] text-sm"
+                            onClick={() => {
+                                // Force save then navigate
+                                saveDraft();
+                                const href = pendingHrefRef.current;
+                                setTimeout(() => {
+                                    setShowLeavePrompt(false);
+                                    pendingHrefRef.current = null;
+                                    if (href) window.location.href = href;
+                                }, 200);
+                            }}
+                        >
+                            Save as draft
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // Audience summary + counts
     useEffect(() => {
@@ -525,6 +772,10 @@ export function CampaignComposerProvider({
             toast.error("Please add a subject line");
             return;
         }
+        if (sendMode === "automation" && !triggerEvent) {
+            toast.error("Select an automation trigger event");
+            return;
+        }
         try {
             const resolveRes = await fetch(`/api/communities/resolve?companyId=${companyId}`);
             const { id: community_id } = resolveRes.ok ? await resolveRes.json() : { id: 1 };
@@ -536,7 +787,9 @@ export function CampaignComposerProvider({
             // Embed styles in HTML before saving
             const htmlContent = editor?.getHTML() ?? "";
             const htmlWithStyles = embedStylesInHTML(htmlContent, emailStyles);
-            
+            const normalizedDelayValue =
+                sendMode === "automation" ? Math.max(0, Math.floor(triggerDelayValue ?? 0)) : null;
+
             const res = await fetch("/api/campaigns", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -546,10 +799,40 @@ export function CampaignComposerProvider({
                     html_content: htmlWithStyles,
                     community_id,
                     audience: audiencePayload,
+                    send_mode: sendMode,
+                    trigger_event: triggerEvent,
+                    trigger_delay_value: normalizedDelayValue,
+                    trigger_delay_unit: sendMode === "automation" ? triggerDelayUnit : null,
+                    automation_status: automationStatus,
+                    quiet_hours_enabled: quietHoursEnabled,
+                    quiet_hours_start: 9,
+                    quiet_hours_end: 20,
+                    automation_sequence_id: sendMode === "automation" ? automationSequenceId : null,
                 }),
             });
             if (res.ok) {
                 const data = await res.json();
+                // If created from a draft, delete the draft to avoid clutter
+                try {
+                    if (draftId) {
+                        await fetch(`/api/drafts/${draftId}?companyId=${companyId}`, { method: 'DELETE' });
+                    }
+                } catch {}
+                if (sendMode === "automation" && automationSequenceId) {
+                    try {
+                        await fetch(`/api/automations/sequences/${automationSequenceId}/steps`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                campaignId: data.campaign.id,
+                                delayValue: normalizedDelayValue,
+                                delayUnit: triggerDelayUnit,
+                            }),
+                        });
+                    } catch (stepError) {
+                        console.error("Failed to attach campaign to automation sequence:", stepError);
+                    }
+                }
                 toast.success("Campaign created successfully!");
                 router.push(`/dashboard/${companyId}/campaigns/${data.campaign.id}`);
             } else {
@@ -558,7 +841,24 @@ export function CampaignComposerProvider({
         } catch (error) {
             toast.error("An error occurred");
         }
-    }, [companyId, audienceMode, selectedTiers, subject, previewText, editor, router, emailStyles]);
+    }, [
+        companyId,
+        audienceMode,
+        selectedTiers,
+        subject,
+        previewText,
+        editor,
+        router,
+        emailStyles,
+        sendMode,
+        triggerEvent,
+        triggerDelayValue,
+        triggerDelayUnit,
+        automationStatus,
+        automationSequenceId,
+        quietHoursEnabled,
+        draftId,
+    ]);
 
     const saveAsTemplate = useCallback(async () => {
         if (!editor) return;
@@ -956,11 +1256,28 @@ export function CampaignComposerProvider({
             setSubject,
             previewText,
             setPreviewText,
+            automationBlueprint,
+            showAutomationBanner,
+            dismissAutomationBanner,
+            sendMode,
+            setSendMode,
+            triggerEvent,
+            setTriggerEvent,
+            triggerDelayValue,
+            setTriggerDelayValue,
+            triggerDelayUnit,
+            setTriggerDelayUnit,
+            automationStatus,
+            setAutomationStatus,
+            automationSequenceId,
+            setAutomationSequenceId,
             draftStatus,
             lastSaved,
             hasUnsavedChanges,
             draftId,
             saveDraft,
+            openDraftById,
+            deleteDraftById,
             collaborationSynced,
             collaborators,
             showPreview,
@@ -987,6 +1304,11 @@ export function CampaignComposerProvider({
             setShowAiDialog,
             showTestEmailDialog,
             setShowTestEmailDialog,
+            showStartSourceModal,
+            setShowStartSourceModal,
+            showDraftsModal,
+            setShowDraftsModal,
+            applyPrefillHtml,
             showAiSidebar,
             setShowAiSidebar,
             aiMessages,
@@ -1042,6 +1364,9 @@ export function CampaignComposerProvider({
             setTimezone,
             quietHoursEnabled,
             setQuietHoursEnabled,
+            senderIdentity,
+            loadingSenderIdentity,
+            refreshSenderIdentity,
             create,
             saveAsTemplate,
             addLink,
@@ -1066,11 +1391,28 @@ export function CampaignComposerProvider({
             currentStep,
             subject,
             previewText,
+            automationBlueprint,
+            showAutomationBanner,
+            dismissAutomationBanner,
+            sendMode,
+            setSendMode,
+            triggerEvent,
+            setTriggerEvent,
+            triggerDelayValue,
+            setTriggerDelayValue,
+            triggerDelayUnit,
+            setTriggerDelayUnit,
+            automationStatus,
+            automationSequenceId,
+            setAutomationStatus,
+            setAutomationSequenceId,
             draftStatus,
             lastSaved,
             hasUnsavedChanges,
             draftId,
             saveDraft,
+            openDraftById,
+            deleteDraftById,
             collaborationSynced,
             collaborators,
             showPreview,
@@ -1084,6 +1426,9 @@ export function CampaignComposerProvider({
             categoryFilter,
             previewTemplateHtml,
             showAiDialog,
+            showStartSourceModal,
+            showDraftsModal,
+            applyPrefillHtml,
             showTestEmailDialog,
             showAiSidebar,
             aiMessages,
@@ -1113,6 +1458,9 @@ export function CampaignComposerProvider({
             utmTemplate,
             timezone,
             quietHoursEnabled,
+            senderIdentity,
+            loadingSenderIdentity,
+            refreshSenderIdentity,
             create,
             saveAsTemplate,
             addLink,
@@ -1129,7 +1477,14 @@ export function CampaignComposerProvider({
         ]
     );
 
-    return <ComposerContext.Provider value={value}>{children}</ComposerContext.Provider>;
+    return (
+        <ComposerContext.Provider value={value}>
+            {children}
+            {/* Inline modal for leave prompt */}
+            { /* eslint-disable-next-line react/jsx-no-undef */}
+            <LeavePromptModal />
+        </ComposerContext.Provider>
+    );
 }
 
 export function useCampaignComposer() {
@@ -1137,5 +1492,7 @@ export function useCampaignComposer() {
     if (!ctx) throw new Error("useCampaignComposer must be used within CampaignComposerProvider");
     return ctx;
 }
+
+
 
 

@@ -31,22 +31,22 @@ export default function AppSidebar({ experienceId, companyId }: SidebarProps) {
 	const base = companyId ? `/dashboard/${companyId}` : `/experiences/${experienceId}`;
     const { open } = useSidebar();
 
-	const items = [
-		{ label: "Campaigns", href: `${base}/campaigns`, match: `${base}/campaigns`, icon: Megaphone },
-		{ label: "Automations", href: `${base}/automations`, match: `${base}/automations`, icon: Bot },
-		{ label: "Metrics", href: `${base}/metrics`, match: `${base}/metrics`, icon: BarChart3 },
-		{ label: "Members", href: `${base}/members`, match: `${base}/members`, icon: Users },
-		{ label: "Settings", href: `${base}/settings`, match: `${base}/settings`, icon: SettingsIcon },
-		{ label: "Upgrade", href: `/upgrade`, match: `/upgrade`, icon: Crown, highlight: true },
-	];
+    const items = [
+        { label: "Campaigns", href: `${base}/campaigns`, match: `${base}/campaigns`, icon: Megaphone },
+        { label: "Automations", href: `${base}/automations`, match: `${base}/automations`, icon: Bot },
+        { label: "Metrics", href: `${base}/metrics`, match: `${base}/metrics`, icon: BarChart3 },
+        { label: "Members", href: `${base}/members`, match: `${base}/members`, icon: Users },
+        { label: "Settings", href: `${base}/settings`, match: `${base}/settings`, icon: SettingsIcon },
+        { label: "Upgrade", href: `/upgrade`, match: `/upgrade`, icon: Crown, highlight: true },
+    ];
 
 	return (
 		<TooltipProvider delayDuration={100}>
 			<Sidebar collapsible="icon">
 				<SidebarHeader>
-					<Link href={`${base}/campaigns`} className="flex items-center gap-2">
+					<Link href={`${base}/campaigns`} className="flex items-center gap-2 no-underline text-white hover:text-white">
 						<Image src="/assets/logos/mm-logo.png" alt="MemberMail" width={28} height={28} className="rounded" />
-						{open && <span className="text-4 font-semibold font-geist">membermail</span>}
+						{open && <span className="text-4 font-semibold font-geist text-white">membermail</span>}
 					</Link>
 					<div className="mt-3">
 						<SidebarTrigger aria-label="Toggle sidebar" />
@@ -64,25 +64,25 @@ export default function AppSidebar({ experienceId, companyId }: SidebarProps) {
 											{!open ? (
 												<Tooltip>
 													<TooltipTrigger asChild>
-														<div className="relative">
-															<SidebarMenuButton asChild isActive={active} className={isHighlight ? "text-yellow-500 hover:text-yellow-600" : ""}>
-																<Link href={it.href} className="flex items-center gap-2">
-																	<it.icon className="h-4 w-4" />
-																</Link>
-															</SidebarMenuButton>
-														</div>
+                                                    <div className="relative">
+                                                        <SidebarMenuButton asChild isActive={active} className={isHighlight ? "text-yellow-500 hover:text-yellow-600" : ""}>
+                                                            <Link href={it.href} className="flex items-center gap-2 no-underline">
+                                                                <it.icon className="h-4 w-4 text-white" />
+                                                            </Link>
+                                                        </SidebarMenuButton>
+                                                    </div>
 													</TooltipTrigger>
 													<TooltipContent side="right">
 														<p>{it.label}</p>
 													</TooltipContent>
 												</Tooltip>
 											) : (
-												<SidebarMenuButton asChild isActive={active} className={isHighlight ? "text-yellow-500 hover:text-yellow-600" : ""}>
-													<Link href={it.href} className="flex items-center gap-2">
-														<it.icon className="h-4 w-4" />
-														{open && <span>{it.label}</span>}
-													</Link>
-												</SidebarMenuButton>
+                                        <SidebarMenuButton asChild isActive={active} className={isHighlight ? "text-yellow-500 hover:text-yellow-600" : "text-white/80 hover:text-white"}>
+                                            <Link href={it.href} className="flex items-center gap-2 no-underline">
+                                                <it.icon className="h-4 w-4 text-white" />
+                                                {open && <span className="text-white">{it.label}</span>}
+                                            </Link>
+                                        </SidebarMenuButton>
 											)}
 										</SidebarMenuItem>
 									);
@@ -99,5 +99,3 @@ export default function AppSidebar({ experienceId, companyId }: SidebarProps) {
 		</TooltipProvider>
 	);
 }
-
-

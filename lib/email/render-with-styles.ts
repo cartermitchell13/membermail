@@ -1,5 +1,151 @@
 import { EmailStyles } from "@/components/email-builder/ui/EmailStylePanel";
 
+function clampAlpha(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function toRgba(color: string, alpha: number, fallback: string): string {
+  if (!color) return fallback;
+  const trimmed = color.trim();
+
+  const rgbaMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbaMatch) {
+    const parts = rgbaMatch[1].split(",").map((part) => part.trim());
+    if (parts.length >= 3) {
+      const r = Number.parseFloat(parts[0]);
+      const g = Number.parseFloat(parts[1]);
+      const b = Number.parseFloat(parts[2]);
+      if ([r, g, b].some((component) => Number.isNaN(component))) {
+        return fallback;
+      }
+      const baseAlpha = parts.length >= 4 ? clampAlpha(Number.parseFloat(parts[3])) : 1;
+      const finalAlpha = clampAlpha(baseAlpha * alpha);
+      return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${Number(finalAlpha.toFixed(3))})`;
+    }
+  }
+
+  const hexMatch = trimmed.match(/^#([0-9a-fA-F]{3,8})$/);
+  if (hexMatch) {
+    let hex = hexMatch[1];
+
+    if (hex.length === 3 || hex.length === 4) {
+      const r = hex[0];
+      const g = hex[1];
+      const b = hex[2];
+      const a = hex.length === 4 ? hex[3] : "f";
+      hex = `${r}${r}${g}${g}${b}${b}${a}${a}`;
+    }
+
+    let baseAlpha = 1;
+    if (hex.length === 8) {
+      baseAlpha = clampAlpha(parseInt(hex.slice(6, 8), 16) / 255);
+      hex = hex.slice(0, 6);
+    }
+
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const finalAlpha = clampAlpha(baseAlpha * alpha);
+      return `rgba(${r}, ${g}, ${b}, ${Number(finalAlpha.toFixed(3))})`;
+    }
+  }
+
+  return fallback;
+}
+
+function withAlpha(color: string, alpha: number, fallback?: string): string {
+  const safeFallback = fallback ?? `rgba(0, 0, 0, ${alpha})`;
+  return toRgba(color, alpha, safeFallback);
+}
+
+function parseRgb(color: string | undefined): { r: number; g: number; b: number } | null {
+  if (!color) return null;
+  const trimmed = color.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("#")) {
+    let hex = trimmed.slice(1);
+    if (hex.length === 3) {
+      hex = hex.split("").map((char) => char + char).join("");
+    } else if (hex.length === 4) {
+      hex = hex
+        .slice(0, 3)
+        .split("")
+        .map((char) => char + char)
+        .join("");
+    } else if (hex.length === 8) {
+      hex = hex.slice(0, 6);
+    } else if (hex.length !== 6) {
+      return null;
+    }
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if ([r, g, b].some((val) => Number.isNaN(val))) return null;
+    return { r, g, b };
+  }
+
+  const rgbMatch = trimmed.match(/^rgba?\((.+)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].split(",").map((part) => part.trim());
+    if (parts.length < 3) return null;
+
+    const parseChannel = (value: string): number | null => {
+      if (value.endsWith("%")) {
+        const perc = Number.parseFloat(value.slice(0, -1));
+        if (Number.isNaN(perc)) return null;
+        return Math.round(Math.max(0, Math.min(100, perc)) * 2.55);
+      }
+      const num = Number.parseFloat(value);
+      if (Number.isNaN(num)) return null;
+      return Math.max(0, Math.min(255, Math.round(num)));
+    };
+
+    const r = parseChannel(parts[0]);
+    const g = parseChannel(parts[1]);
+    const b = parseChannel(parts[2]);
+    if (r === null || g === null || b === null) return null;
+    return { r, g, b };
+  }
+
+  return null;
+}
+
+function toHexChannel(value: number): string {
+  return value.toString(16).padStart(2, "0").toUpperCase();
+}
+
+function normalizeColor(color: string | undefined, fallback: string): string {
+  const parsed = parseRgb(color);
+  if (parsed) {
+    return `#${toHexChannel(parsed.r)}${toHexChannel(parsed.g)}${toHexChannel(parsed.b)}`;
+  }
+  const fallbackParsed = parseRgb(fallback);
+  if (fallbackParsed) {
+    return `#${toHexChannel(fallbackParsed.r)}${toHexChannel(fallbackParsed.g)}${toHexChannel(fallbackParsed.b)}`;
+  }
+  return "#FFFFFF";
+}
+
+function relativeLuminance(color: string | undefined): number {
+  const parsed = parseRgb(color);
+  if (!parsed) return 1;
+  const normalize = (value: number) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+  };
+  const r = normalize(parsed.r);
+  const g = normalize(parsed.g);
+  const b = normalize(parsed.b);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function isDarkColor(color: string | undefined): boolean {
+  return relativeLuminance(color) < 0.45;
+}
+
 /**
  * Render email HTML with custom color styles applied
  * Wraps the content in a styled email template with color customization only
@@ -142,33 +288,173 @@ function normalizeCtaHtml(content: string, styles: EmailStyles): string {
 }
 
 export function renderEmailWithStyles(content: string, styles: EmailStyles): string {
+	const outsideBackgroundValue = styles.outsideBackground || "#FFFFFF";
+	const postBackgroundValue = styles.postBackground || "#FFFFFF";
+	const textColorValue = styles.textOnBackground || "#2D2D2D";
+	const outsideBackgroundHex = normalizeColor(outsideBackgroundValue, "#f5f5f5");
+	const postBackgroundHex = normalizeColor(postBackgroundValue, "#ffffff");
+	const forcedColorScheme = isDarkColor(postBackgroundHex) ? "dark" : "light";
+	const fallbackMuted = "rgba(45, 45, 45, 0.6)";
+	const footerTextMuted = withAlpha(styles.textOnBackground, 0.65, fallbackMuted);
+	const footerTextSubtle = withAlpha(styles.textOnBackground, 0.55, "rgba(45, 45, 45, 0.55)");
+	const footerDividerColor = withAlpha(styles.textOnBackground, 0.16, "rgba(45, 45, 45, 0.16)");
+	const footerBorderColor = withAlpha(styles.textOnBackground, 0.14, "rgba(45, 45, 45, 0.14)");
+	const footerButtonShadow = withAlpha(styles.primary, 0.2, "rgba(0, 0, 0, 0.1)");
+	const footerButtonBg = styles.primary || "#030712";
+	const footerButtonText = styles.textOnPrimary || "#FFFFFF";
+	const footerLinkColor = styles.links || footerButtonBg;
+
 	// Create CSS for the email with color styles only
 	const emailCSS = `
 		/* Reset styles for email clients */
 		body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
 		table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
 		img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+
+		:root {
+			color-scheme: ${forcedColorScheme};
+			supported-color-schemes: ${forcedColorScheme};
+		}
 		
 		/* Email container styles - colors only */
 		body {
 			margin: 0;
 			padding: 0;
 			width: 100% !important;
-			background-color: ${styles.outsideBackground};
-			color: ${styles.textOnBackground};
+			background-color: ${outsideBackgroundValue} !important;
+			color: ${textColorValue} !important;
+		}
+
+		body[data-mm-force-scheme] {
+			background-color: ${outsideBackgroundValue} !important;
+			color: ${textColorValue} !important;
 		}
 		
 		/* Content wrapper - colors only */
 		.email-wrapper {
-			background-color: ${styles.outsideBackground};
+			background-color: ${outsideBackgroundValue} !important;
 			padding: 35px;
 		}
 		
 		.email-content {
 			max-width: 600px;
 			margin: 0 auto;
+			background-color: ${postBackgroundValue} !important;
+			padding: 40px !important;
+			box-sizing: border-box;
+			border-radius: 24px !important;
+			overflow: hidden !important;
+		}
+		
+		.email-footer {
+			width: 100%;
+			margin-top: 48px !important;
+			border-collapse: separate;
+			border-spacing: 0;
+			background-color: ${styles.postBackground} !important;
+			border-top: 1px solid ${footerBorderColor} !important;
+		}
+
+		.email-footer__cell {
+			padding: 0 !important;
+		}
+
+		.email-footer__content {
+			width: 100%;
+			max-width: 600px;
+			border-collapse: separate;
+			border-spacing: 0;
 			background-color: ${styles.postBackground};
-			padding: 40px;
+		}
+
+		.email-footer__inner {
+			padding: 40px 32px !important;
+			text-align: center !important;
+		}
+
+		.email-footer__brand {
+			font-size: 18px;
+			font-weight: 700;
+			color: ${styles.textOnBackground} !important;
+			letter-spacing: -0.02em;
+			margin: 0 0 20px 0;
+		}
+
+		.email-footer__divider {
+			width: 64px;
+			height: 2px;
+			background-color: ${footerDividerColor} !important;
+			margin: 0 auto 24px;
+			border-radius: 9999px;
+		}
+
+		.email-footer__support {
+			color: ${footerTextMuted} !important;
+			font-size: 13px;
+			line-height: 1.6;
+			margin: 0 0 20px 0;
+		}
+
+		.email-footer__cta-wrap {
+			margin: 0 0 24px 0;
+		}
+
+		.email-footer__cta {
+			display: inline-block;
+			padding: 10px 22px;
+			border-radius: 9999px;
+			background-color: ${footerButtonBg} !important;
+			color: ${footerButtonText} !important;
+			text-decoration: none;
+			font-size: 13px;
+			font-weight: 600;
+			box-shadow: 0 12px 24px ${footerButtonShadow};
+			transition: opacity 0.2s ease, transform 0.2s ease;
+		}
+
+		.email-footer__cta:hover,
+		.email-footer__cta:focus {
+			opacity: 0.9;
+			transform: translateY(-1px);
+		}
+
+		.email-footer__note {
+			margin: 16px 0 0 0;
+			color: ${footerTextSubtle} !important;
+			font-size: 12px;
+			line-height: 1.5;
+		}
+
+		.email-footer__bottom {
+			margin-top: 28px;
+			padding-top: 20px;
+			border-top: 1px solid ${footerBorderColor} !important;
+		}
+
+		.email-footer__copyright {
+			margin: 0;
+			color: ${footerTextSubtle} !important;
+			font-size: 11px;
+			line-height: 1.5;
+		}
+
+		.email-footer__support a,
+		.email-footer__note a,
+		.email-footer__copyright a {
+			color: ${footerLinkColor} !important;
+		}
+
+		@media (prefers-color-scheme: dark) {
+			body[data-mm-force-scheme] {
+				background-color: ${outsideBackgroundValue} !important;
+				color: ${textColorValue} !important;
+			}
+			body[data-mm-force-scheme] .email-wrapper {
+				background-color: ${outsideBackgroundValue} !important;
+			}
+			body[data-mm-force-scheme] .email-content {
+				background-color: ${postBackgroundValue} !important;
+			}
 		}
 		
 		/* Heading hierarchy - preserve default sizes and weights */
@@ -437,6 +723,23 @@ export function renderEmailWithStyles(content: string, styles: EmailStyles): str
 			}
 			.email-content {
 				padding: 20px !important;
+				border-radius: 20px !important;
+			}
+			.email-footer {
+				margin-top: 32px !important;
+			}
+			.email-footer__inner {
+				padding: 28px 18px !important;
+			}
+			.email-footer__divider {
+				width: 48px !important;
+			}
+			.email-footer__cta {
+				width: 100% !important;
+			}
+			.email-footer__cta:hover,
+			.email-footer__cta:focus {
+				transform: none !important;
 			}
 		}
 	`;
@@ -449,12 +752,14 @@ export function renderEmailWithStyles(content: string, styles: EmailStyles): str
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="color-scheme" content="${forcedColorScheme}">
+	<meta name="supported-color-schemes" content="${forcedColorScheme}">
 	<title>Email</title>
 	<style>${emailCSS}</style>
 </head>
-<body>
-	<div class="email-wrapper">
-		<div class="email-content">
+<body data-mm-force-scheme="${forcedColorScheme}" style="margin:0;padding:0;background-color:${outsideBackgroundValue};color:${textColorValue};color-scheme:${forcedColorScheme};" bgcolor="${outsideBackgroundHex}">
+	<div class="email-wrapper" style="background-color:${outsideBackgroundValue};">
+		<div class="email-content" style="background-color:${postBackgroundValue};">
 			${normalizeCtaHtml(content, styles)}
 		</div>
 	</div>

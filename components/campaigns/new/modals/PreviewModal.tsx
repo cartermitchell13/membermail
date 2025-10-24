@@ -7,12 +7,14 @@ import { EmailStylePanel } from "@/components/email-builder/ui/EmailStylePanel";
 import { Palette } from "lucide-react";
 
 export default function PreviewModal() {
-    const { showPreview, setShowPreview, previewMode, setPreviewMode, subject, previewText, editor, user, loadingUser, emailStyles, setEmailStyles, showStylePanel, setShowStylePanel } = useCampaignComposer();
+    const { showPreview, setShowPreview, previewMode, setPreviewMode, subject, previewText, editor, emailStyles, setEmailStyles, showStylePanel, setShowStylePanel, senderIdentity, loadingSenderIdentity } = useCampaignComposer();
     if (!showPreview) return null;
 
     // Generate sender name and email from user data
-    const senderName = user?.name || "Your Newsletter";
-    const senderEmail = user?.email || `${user?.username || "newsletter"}@mail.membermail.com`;
+    const senderName = senderIdentity.displayName || "Your Newsletter";
+    const senderEmail = senderIdentity.mailUsername
+        ? `${senderIdentity.mailUsername}@mail.membermail.app`
+        : "username@mail.membermail.app";
 
     const emailHtml = (() => {
         const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
@@ -107,7 +109,7 @@ export default function PreviewModal() {
                                     <div style={{ display: "flex", gap: 16 }}>
                                         <span style={{ fontSize: 14, color: "#4b5563", fontWeight: 600, minWidth: 100 }}>From:</span>
                                         <span style={{ fontSize: 14, color: "#111827", flex: 1 }}>
-                                            {loadingUser ? "Loading..." : `${senderName} <${senderEmail}>`}
+                                            {loadingSenderIdentity ? "Loading..." : `${senderName} <${senderEmail}>`}
                                         </span>
                                     </div>
                                     <div style={{ display: "flex", gap: 16 }}>

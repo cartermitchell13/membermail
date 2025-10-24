@@ -126,7 +126,7 @@ export async function PUT(req: NextRequest) {
     const supabase = getBrowserSupabaseClient();
 
     // Update existing draft
-    const { data: draft, error } = await supabase
+    let update = supabase
       .from('drafts')
       .update({
         campaign_id: campaignId || null,
@@ -138,9 +138,13 @@ export async function PUT(req: NextRequest) {
         last_edited_by: userId,
       } as any)
       .eq('id', id)
-      .eq('user_id', userId) // Ensure user owns this draft
-      .select()
-      .single();
+      .eq('user_id', userId); // Ensure user owns this draft
+
+    if (companyId) {
+      update = update.eq('company_id', companyId);
+    }
+
+    const { data: draft, error } = await update.select().single();
 
     if (error) {
       console.error('Error updating draft:', error);

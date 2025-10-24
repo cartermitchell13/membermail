@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      company_webhooks: {
+        Row: {
+          id: number
+          whop_community_id: string
+          community_id: number | null
+          whop_webhook_id: string
+          webhook_secret: string
+          url: string
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          whop_community_id: string
+          community_id?: number | null
+          whop_webhook_id: string
+          webhook_secret: string
+          url: string
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          whop_community_id?: string
+          community_id?: number | null
+          whop_webhook_id?: string
+          webhook_secret?: string
+          url?: string
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_webhooks_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: true
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           audience: Json | null
@@ -283,22 +327,28 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          display_name: string | null
           email: string
           id: string
+          mail_username: string | null
           name: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          display_name?: string | null
           email: string
           id?: string
+          mail_username?: string | null
           name?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          display_name?: string | null
           email?: string
           id?: string
+          mail_username?: string | null
           name?: string | null
           updated_at?: string | null
         }

@@ -5,12 +5,15 @@ import TopStepperBar from "@/components/campaigns/new/TopStepperBar";
 import ComposeStep from "@/components/campaigns/new/steps/ComposeStep";
 import AudienceStep from "@/components/campaigns/new/steps/AudienceStep";
 import SettingsStep from "@/components/campaigns/new/steps/SettingsStep";
+import AutomationStep from "@/components/campaigns/new/steps/AutomationStep";
 import ReviewStep from "@/components/campaigns/new/steps/ReviewStep";
 import PreviewModal from "@/components/campaigns/new/modals/PreviewModal";
 import TemplatePicker from "@/components/campaigns/new/modals/TemplatePicker";
 import TemplatePreviewModal from "@/components/campaigns/new/modals/TemplatePreviewModal";
 import SaveTemplateDialog from "@/components/campaigns/new/modals/SaveTemplateDialog";
 import AIPromptDialogWrapper from "@/components/campaigns/new/modals/AIPromptDialogWrapper";
+import StartSourceModal from "@/components/campaigns/new/modals/StartSourceModal";
+import DraftsModal from "@/components/campaigns/new/modals/DraftsModal";
 
 export default function NewCampaignPage({ params }: { params: Promise<{ companyId: string }> }) {
 	const { companyId } = use(params);
@@ -23,15 +26,16 @@ export default function NewCampaignPage({ params }: { params: Promise<{ companyI
 				<ComposeStep />
 				<AudienceStep />
 				<SettingsStep />
+				<AutomationStep />
 				<ReviewStep />
 				<PreviewModal />
 				<TemplatePicker />
 				<TemplatePreviewModal />
 				<SaveTemplateDialog />
 				<AIPromptDialogWrapper />
+				<StartSourceModal />
+				<DraftsModal />
 			</div>
 		</CampaignComposerProvider>
 	);
 }
-
-

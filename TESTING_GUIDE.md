@@ -20,6 +20,38 @@ Instead of relying on real Whop data, you can:
 3. **Generate realistic analytics** to test your dashboard
 
 ---
+## Automation Sequences QA Checklist
+
+1. **Create a sequence**
+   - Visit `/dashboard/<companyId>/automations`.
+   - Use the *Automation sequences* form to create a new sequence with a Whop trigger.
+2. **Build the flow**
+   - From the sequence card, click *Add automation email*.
+   - Compose an email and keep the delivery mode on **Automation** (sequence emails cannot be manual).
+   - Confirm that the new campaign appears in the sequence step list with the correct delay.
+3. **Simulate an event**
+   - Seed test data if needed (`pnpm seed:test`).
+   - Call the webhook endpoint with a supported event, for example:
+     ```bash
+     curl -X POST http://localhost:3000/api/webhooks \
+       -H "Content-Type: application/json" \
+       -d '{"action":"payment_failed","data":{"company_id":"biz_testcompany123","user_id":"member_001"}}'
+     ```
+4. **Process queued jobs**
+   - Set `AUTOMATION_CRON_SECRET=local-dev` in your shell.
+   - Run the automation processor locally:
+     ```bash
+     curl -X POST http://localhost:3000/api/automations/process -H "x-cron-secret: local-dev"
+     ```
+   - Verify email events are stored for the sequence step in `email_events`.
+5. **Respect quiet hours**
+   - Set quiet hours via the campaign Settings step.
+   - Re-run the processor while the scheduled time is outside the window and confirm the job is deferred.
+6. **Regression quick-check**
+   - `pnpm test:automations` to run the unit tests for event normalization helpers.
+   - `pnpm check:test` to confirm seeded data remains consistent.
+
+---
 
 ## 🚀 Quick Start
 
@@ -400,3 +432,5 @@ After running a simulation, expect to see:
 ---
 
 **Questions?** Create an issue or check the project README for more information.
+
+

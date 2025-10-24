@@ -18,6 +18,7 @@ export default function AISidebarWrapper() {
         aiMode,
         setAiMode,
         sendAiMessage,
+        automationBlueprint,
     } = useCampaignComposer();
 
     // Listen for clear context event
@@ -40,6 +41,7 @@ export default function AISidebarWrapper() {
             selectedText={aiSelectedText}
             mode={aiMode}
             onModeChange={setAiMode}
+            initialPrompt={automationBlueprint?.aiPromptTemplate}
         />
     );
 }

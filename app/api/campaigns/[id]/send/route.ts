@@ -1,39 +1,12 @@
 import { NextRequest } from "next/server";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/resend";
-import { wrapEmailHtml } from "@/lib/email/templates/wrapper";
-import { createSignature, buildOpenPayload, buildClickPayload, buildUnsubscribePayload } from "@/lib/tracking/hmac";
-import { renderEmailFooterHtml } from "@/lib/email/footer";
-
-function withTracking(html: string, campaignId: number, memberId: number, footerBrand: string, footerText: string | null): string {
-    const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-    const openPayload = buildOpenPayload(String(campaignId), String(memberId));
-    const openSig = createSignature(openPayload);
-    const openPixelSrc = `${base}/api/track/open?c=${campaignId}&m=${memberId}&sig=${openSig}`;
-    const openPixel = `<img src="${openPixelSrc}" width="1" height="1" style="display:none;" />`;
-
-    const trackedHtml = html.replace(/href="([^"]+)"/g, (match, url) => {
-		try {
-			const encoded = encodeURIComponent(url);
-			const clickPayload = buildClickPayload(String(campaignId), String(memberId), encoded);
-			const sig = createSignature(clickPayload);
-            const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-            return `href="${base}/api/track/click?c=${campaignId}&m=${memberId}&u=${encoded}&sig=${sig}"`;
-		} catch {
-			return match;
-		}
-	});
-
-    // Footer with unsubscribe link
-    const unsubPayload = buildUnsubscribePayload(String(campaignId), String(memberId));
-    const unsubSig = createSignature(unsubPayload);
-    const unsubscribeUrl = `${base}/api/unsubscribe?c=${campaignId}&m=${memberId}&sig=${unsubSig}`;
-    const safeBrand = footerBrand || "MemberMail";
-    const custom = footerText ? `<div style=\"margin-top:8px\">${footerText}</div>` : "";
-    const footerHtml = renderEmailFooterHtml(safeBrand, unsubscribeUrl, footerText);
-
-    return trackedHtml + openPixel + footerHtml;
-}
+import { buildTrackedEmailHtml } from "@/lib/email/build-tracked-email";
+import {
+  fetchSenderIdentityByUserId,
+  formatSenderAddress,
+  isSenderIdentityComplete,
+} from "@/lib/email/sender-identity";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 	const { id: paramId } = await params;
@@ -41,6 +14,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 	const id = Number(paramId);
 	const { data: campaign } = await supabase.from("campaigns").select("*").eq("id", id).single();
 	if (!campaign) return new Response("Not found", { status: 404 });
+    if (campaign.send_mode === "automation") {
+        return new Response("Automation campaigns are delivered automatically", { status: 400 });
+    }
 
 	// Fetch recipients: all members of the campaign's community who are active
     let membersQuery = supabase
@@ -65,17 +41,43 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     // load community branding/footer
     const { data: community } = await supabase
         .from("communities")
-        .select("name, footer_text")
+        .select("name, footer_text, reply_to_email, user_id")
         .eq("id", campaign.community_id)
         .single();
-    const footerBrand = community?.name || "";
-    const footerText = community?.footer_text ?? null;
+
+    if (!community) {
+        return new Response("Community not found", { status: 404 });
+    }
+
+    const identity = await fetchSenderIdentityByUserId(supabase, community.user_id);
+    if (!isSenderIdentityComplete(identity)) {
+        return new Response("Sender identity not configured", { status: 400 });
+    }
+
+    const fromAddress = formatSenderAddress({
+        displayName: identity.displayName,
+        mailUsername: identity.mailUsername,
+    });
+    const replyToAddress = community.reply_to_email ?? undefined;
+    const footerBrand = community.name || "";
+    const footerText = community.footer_text ?? null;
 
     let sent = 0;
     for (const m of members) {
-        const trackedHtml = withTracking(campaign.html_content, id, m.id, footerBrand, footerText);
-        const wrappedHtml = wrapEmailHtml(trackedHtml);
-		await sendEmail({ to: m.email, subject: campaign.subject, html: wrappedHtml });
+        const html = buildTrackedEmailHtml({
+            campaignId: id,
+            memberId: m.id,
+            html: campaign.html_content,
+            footerBrand,
+            footerText,
+        });
+		await sendEmail({
+            to: m.email,
+            subject: campaign.subject,
+            html,
+            from: fromAddress,
+            replyTo: replyToAddress,
+        });
 		sent += 1;
 		await supabase.from("email_events").insert({ campaign_id: id, member_id: m.id, type: "sent" });
 	}

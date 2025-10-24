@@ -15,10 +15,35 @@ function getResend(): Resend {
 	return resendInstance;
 }
 
-export async function sendEmail(options: { to: string; subject: string; html: string; from?: string }) {
-	const from = options.from ?? process.env.EMAIL_FROM ?? "MemberMail <no-reply@mail.membermail.app>";
-	const resend = getResend();
-	return resend.emails.send({ from, to: options.to, subject: options.subject, html: options.html });
+type SendEmailOptions = {
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
+  replyTo?: string;
+};
+
+export async function sendEmail(options: SendEmailOptions) {
+  const from = options.from ?? process.env.EMAIL_FROM ?? "MemberMail <no-reply@mail.membermail.app>";
+  const resend = getResend();
+  const payload: {
+    from: string;
+    to: string;
+    subject: string;
+    html: string;
+    reply_to?: string;
+  } = {
+    from,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+  };
+
+  if (options.replyTo) {
+    payload.reply_to = options.replyTo;
+  }
+
+  return resend.emails.send(payload);
 }
 
 

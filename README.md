@@ -13,6 +13,8 @@ To run this project:
 	- Ensure the "Discover path" is set to `/discover` 
 
 3. Copy the environment variables from the `.env.development` into a `.env.local`. Ensure to use real values from the whop dashboard.
+   - Add `APP_URL` pointing to your deployed URL. For local development, use a public tunnel (e.g., ngrok) because Whop webhooks must reach your server. Example: `APP_URL=https://your-id.ngrok.app`
+   - OAuth scopes request `developer:manage_webhook` to allow the app to programmatically create webhooks during install.
 
 4. Go to a whop created in the same org as the app you created. Navigate to the tools section and add your app.
 
@@ -25,6 +27,7 @@ To run this project:
 2. Go to [Vercel](https://vercel.com/new) and link the repository. Deploy your application with the environment variables from your `.env.local`
 
 3. If necessary update you "Base Domain" and webhook callback urls on the app settings page on the whop dashboard.
+   - Ensure your app is reachable at `APP_URL` and that the webhook endpoint is `${APP_URL}/api/whop/webhook`.
 
 ## Troubleshooting
 

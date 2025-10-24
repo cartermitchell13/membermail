@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Mail, X } from "lucide-react";
 import { toast } from "sonner";
+import { useCampaignComposer } from "@/components/campaigns/new/CampaignComposerProvider";
+import { embedStylesInHTML } from "@/lib/email/render-with-styles";
 
 /**
  * Dialog for sending a test email with the current campaign content
@@ -12,15 +14,14 @@ export default function SendTestEmailDialog({
     show,
     onClose,
     subject,
-    htmlContent,
 }: {
     show: boolean;
     onClose: () => void;
     subject: string;
-    htmlContent: string;
 }) {
     const [email, setEmail] = useState("");
     const [sending, setSending] = useState(false);
+    const { editor, emailStyles, companyId, senderIdentity, loadingSenderIdentity } = useCampaignComposer();
 
     // Handle send test email
     const handleSend = async () => {
@@ -41,16 +42,25 @@ export default function SendTestEmailDialog({
             return;
         }
 
-        if (!htmlContent.trim()) {
+        if (!senderIdentity.setupComplete) {
+            toast.error("Complete sender setup before sending test emails");
+            return;
+        }
+
+        const editorHtml = editor?.getHTML() ?? "";
+
+        if (!editorHtml.trim()) {
             toast.error("Email content is empty");
             return;
         }
 
+        const htmlWithStyles = embedStylesInHTML(editorHtml, emailStyles);
+
         setSending(true);
 
         // Debug: log the HTML content being sent
-        console.log("HTML Content being sent (first 500 chars):", htmlContent.substring(0, 500));
-        console.log("HTML Content length:", htmlContent.length);
+        console.log("HTML Content being sent (first 500 chars):", htmlWithStyles.substring(0, 500));
+        console.log("HTML Content length:", htmlWithStyles.length);
 
         try {
             const response = await fetch("/api/test-email", {
@@ -59,7 +69,8 @@ export default function SendTestEmailDialog({
                 body: JSON.stringify({
                     to: email.trim(),
                     subject: subject.trim(),
-                    html: htmlContent,
+                    html: htmlWithStyles,
+                    companyId,
                 }),
             });
 
@@ -92,6 +103,8 @@ export default function SendTestEmailDialog({
     };
 
     if (!show) return null;
+
+    const setupBlocked = !senderIdentity.setupComplete;
 
     return (
         <div
@@ -135,9 +148,16 @@ export default function SendTestEmailDialog({
                             onKeyDown={handleKeyDown}
                             placeholder="you@example.com"
                             autoFocus
-                            className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FA4616] focus:border-transparent transition-all"
+                            disabled={setupBlocked}
+                            className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FA4616] focus:border-transparent transition-all disabled:opacity-50"
                         />
                     </div>
+
+                    {setupBlocked && !loadingSenderIdentity && (
+                        <div className="text-xs text-[#ff6b6b]">
+                            Finish sender setup before sending test emails.
+                        </div>
+                    )}
 
                     {subject && (
                         <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
@@ -165,7 +185,7 @@ export default function SendTestEmailDialog({
                     </button>
                     <button
                         onClick={handleSend}
-                        disabled={sending || !email.trim()}
+                        disabled={sending || !email.trim() || setupBlocked}
                         className="px-4 py-2 text-sm font-medium bg-[#FA4616] hover:bg-[#FA4616]/90 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         {sending ? (

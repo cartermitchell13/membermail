@@ -9,7 +9,8 @@
 		"lint": "next lint",
 		"seed:test": "tsx scripts/seed-test-data.ts",
 		"check:test": "tsx scripts/check-test-data.ts",
-		"reset:test": "tsx scripts/reset-test-data.ts"
+		"reset:test": "tsx scripts/reset-test-data.ts",
+		"test:automations": "tsx --test tests/automations/events.test.ts"
 	},
 	"dependencies": {
 		"@floating-ui/dom": "^1.7.4",
@@ -85,3 +86,4 @@
 	"author": "",
 	"license": "ISC"
 }
+

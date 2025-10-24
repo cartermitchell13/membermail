@@ -1,22 +1,30 @@
-import AppSidebar from "@/components/AppSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { whopSdk } from "@/lib/whop-sdk";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { ensureCompanyWebhook } from "@/lib/whop/webhooks";
 
 export default async function ExperienceLayout({
-	children,
 	params,
 }: {
-	children: React.ReactNode;
 	params: Promise<{ experienceId: string }>;
 }) {
+	// Derive the company from the experience and redirect to the company campaigns
+	const headersList = await headers();
 	const { experienceId } = await params;
-	return (
-		<SidebarProvider>
-			<div className="min-h-screen bg-black flex">
-				<AppSidebar experienceId={experienceId} />
-				<main className="relative flex-1 min-h-0 m-4 h-[calc(100vh-2rem)] rounded-2xl border border-white/10 bg-[#111111] text-white overflow-hidden px-8 pt-8 pb-8">
-					{children}
-				</main>
-			</div>
-		</SidebarProvider>
-	);
+	const { userId } = await whopSdk.verifyUserToken(headersList);
+	const experience = await whopSdk.experiences.getExperience({ experienceId });
+
+	// Optional: You could also enforce access here if needed using checkIfUserHasAccessToExperience
+	const companyId = experience.company.id;
+
+	// Ensure the Whop webhook is created/updated for this company
+	try {
+		await ensureCompanyWebhook(companyId);
+	} catch (err) {
+		console.warn("[ExperienceLayout] ensureCompanyWebhook failed", {
+			companyId,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+	redirect(`/dashboard/${companyId}/campaigns`);
 }

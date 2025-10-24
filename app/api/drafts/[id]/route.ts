@@ -21,13 +21,20 @@ export async function GET(
     const { id } = await params;
 
     const supabase = getBrowserSupabaseClient();
+    const { searchParams } = new URL(req.url);
+    const companyId = searchParams.get('companyId');
 
-    const { data: draft, error } = await supabase
+    let query = supabase
       .from('drafts')
       .select('*')
       .eq('id', id)
-      .eq('user_id', userId) // Ensure user owns this draft
-      .single();
+      .eq('user_id', userId); // Ensure user owns this draft
+
+    if (companyId) {
+      query = query.eq('company_id', companyId);
+    }
+
+    const { data: draft, error } = await query.single();
 
     if (error) {
       console.error('Error fetching draft:', error);
@@ -54,12 +61,20 @@ export async function DELETE(
     const { id } = await params;
 
     const supabase = getBrowserSupabaseClient();
+    const { searchParams } = new URL(req.url);
+    const companyId = searchParams.get('companyId');
 
-    const { error } = await supabase
+    let del = supabase
       .from('drafts')
       .delete()
       .eq('id', id)
-      .eq('user_id', userId); // Ensure user owns this draft
+      .eq('user_id', userId);
+
+    if (companyId) {
+      del = del.eq('company_id', companyId);
+    }
+
+    const { error } = await del;
 
     if (error) {
       console.error('Error deleting draft:', error);

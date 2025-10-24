@@ -129,19 +129,22 @@ export default function AISidebar({
     selectedText,
     mode,
     onModeChange,
+    initialPrompt,
 }: {
     isOpen: boolean;
     onClose: () => void;
     messages: ChatMessage[];
-    onSendMessage: (prompt: string, context?: { selectedText: string; mode: AIMode }) => void;
+    onSendMessage: (prompt: string, context?: { selectedText: string; mode: AIMode }) => Promise<void>;
     isStreaming: boolean;
     selectedText: string | null;
     mode: AIMode;
     onModeChange: (mode: AIMode) => void;
+    initialPrompt?: string;
 }) {
     const [input, setInput] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const hasPrefilledRef = useRef(false);
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
@@ -154,6 +157,27 @@ export default function AISidebar({
             setTimeout(() => textareaRef.current?.focus(), 100);
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            hasPrefilledRef.current = false;
+            return;
+        }
+        if (!initialPrompt) return;
+        if (messages.length > 0) return;
+        if (hasPrefilledRef.current) return;
+
+        setInput(initialPrompt);
+        hasPrefilledRef.current = true;
+        requestAnimationFrame(() => {
+            const textarea = textareaRef.current;
+            if (textarea) {
+                textarea.style.height = "auto";
+                textarea.style.height = `${textarea.scrollHeight}px`;
+                textarea.focus();
+            }
+        });
+    }, [isOpen, initialPrompt, messages.length]);
 
     // Auto-set mode to "edit" when text is selected
     useEffect(() => {
@@ -188,7 +212,7 @@ export default function AISidebar({
             ? { selectedText, mode }
             : undefined;
 
-        onSendMessage(input.trim(), context);
+        void onSendMessage(input.trim(), context);
         setInput("");
         
         // Clear attached context immediately after sending
@@ -256,17 +280,43 @@ export default function AISidebar({
                 {/* Messages */}
                 <div className={`flex-1 min-h-0 overflow-y-auto p-3 pb-4 scrollbar-hide ${!selectedText ? 'pt-12' : ''}`}>
                     {messages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center px-4">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FA4616]/20 to-purple-600/20 flex items-center justify-center mb-3">
-                                <Wand2 className="w-6 h-6 text-[#FA4616]" />
+                        initialPrompt ? (
+                            <div className="flex h-full flex-col gap-3 overflow-y-auto px-4 py-6 text-sm text-white/70">
+                                <div>
+                                    <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-primary/70">
+                                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                                        Blueprint prompt ready
+                                    </div>
+                                    <p className="mt-2 text-xs text-white/60">
+                                        We preloaded a campaign brief based on the automation you picked. Replace the bracketed sections with your details before you hit send.
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+                                    <div className="mb-2 flex items-center justify-between gap-2 text-[11px] uppercase tracking-wide text-white/40">
+                                        <span>Prompt draft</span>
+                                        <span className="text-white/50">Editable below</span>
+                                    </div>
+                                    <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap break-words rounded bg-white/5 px-3 py-2 text-[11px] leading-relaxed text-white/80">
+{initialPrompt}
+                                    </pre>
+                                </div>
+                                <div className="text-xs text-white/50">
+                                    You can keep editing this prompt in the input field or switch to an edit/insert mode after selecting text in your email.
+                                </div>
                             </div>
-                            <h3 className="text-base font-semibold text-white mb-2">
-                                Start creating with AI
-                            </h3>
-                            <p className="text-sm text-white/60 max-w-[280px]">
-                                Select text to edit it, or ask me to generate new content.
-                            </p>
-                        </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FA4616]/20 to-purple-600/20 flex items-center justify-center mb-3">
+                                    <Wand2 className="w-6 h-6 text-[#FA4616]" />
+                                </div>
+                                <h3 className="text-base font-semibold text-white mb-2">
+                                    Start creating with AI
+                                </h3>
+                                <p className="text-sm text-white/60 max-w-[280px]">
+                                    Select text to edit it, or ask me to generate new content.
+                                </p>
+                            </div>
+                        )
                     ) : (
                         <>
                             {messages.map((msg) => (

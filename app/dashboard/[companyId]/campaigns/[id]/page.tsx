@@ -3,23 +3,12 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { EditorContent, useEditor } from "@tiptap/react";
-import Columns from "@/components/email-builder/extensions/Columns";
-import SlashCommand from "@/components/email-builder/extensions/SlashCommand";
-import CTA from "@/components/email-builder/extensions/CTA";
-import { FormattingToolbar } from "@/components/email-builder/ui/FormattingToolbar";
 import { SimulateSendButton } from "@/components/campaigns/SimulateSendButton";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import Image from "@tiptap/extension-image";
-import Placeholder from "@tiptap/extension-placeholder";
-import { TextAlign } from "@tiptap/extension-text-align";
-import { TextStyle } from "@tiptap/extension-text-style";
-import { Color } from "@tiptap/extension-color";
-import { FontFamily } from "@tiptap/extension-font-family";
 import { renderEmailWithStyles, extractEmailStyles } from "@/lib/email/render-with-styles";
 import { renderEmailFooterHtml } from "@/lib/email/footer";
 import { type EmailStyles, defaultEmailStyles } from "@/components/email-builder/ui/EmailStylePanel";
+import { getEventLabel } from "@/lib/automations/events";
+import type { AutomationTriggerEvent } from "@/lib/automations/events";
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ companyId: string; id: string }> }) {
 	const { companyId, id } = use(params);
@@ -28,29 +17,23 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
     const [subject, setSubject] = useState<string>("");
     const [preview, setPreview] = useState<string>("");
 	const [saving, setSaving] = useState(false);
-	const [sending, setSending] = useState(false);
+    const [sending, setSending] = useState(false);
     const [events, setEvents] = useState<any[]>([]);
     const [emailStyles, setEmailStyles] = useState<EmailStyles>(defaultEmailStyles);
-    const editor = useEditor({
-        immediatelyRender: false,
-        extensions: [
-            StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-            Link.configure({ openOnClick: false, autolink: true }),
-            Image,
-            Placeholder.configure({ placeholder: "Write your newsletter..." }),
-            TextAlign.configure({
-                types: ['heading', 'paragraph'],
-            }),
-            TextStyle,
-            Color,
-            FontFamily,
-            Columns,
-            CTA,
-            SlashCommand,
-        ],
-        content: "",
-        editable: true,
+    const [senderIdentity, setSenderIdentity] = useState<{ setupComplete: boolean; displayName: string | null; mailUsername: string | null }>({
+        setupComplete: false,
+        displayName: null,
+        mailUsername: null,
     });
+    const [loadingIdentity, setLoadingIdentity] = useState(true);
+    const formatTrigger = (code: string | null | undefined) => {
+        if (!code) return null;
+        try {
+            return getEventLabel(code as AutomationTriggerEvent);
+        } catch {
+            return code;
+        }
+    };
 
 	useEffect(() => {
 		(async () => {
@@ -61,12 +44,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
 				setSubject(data.campaign.subject);
                 setPreview(data.campaign.preview_text ?? "");
                 const htmlContent = data.campaign.html_content || "";
-                editor?.commands.setContent(htmlContent);
                 const styles = extractEmailStyles(htmlContent);
                 if (styles) setEmailStyles(styles);
 			}
 		})();
-    }, [id, editor]);
+	}, [id]);
 
     useEffect(() => {
         (async () => {
@@ -78,9 +60,24 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
         })();
     }, [id]);
 
+    useEffect(() => {
+        (async () => {
+            const res = await fetch(`/api/sender-identity?companyId=${companyId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setSenderIdentity({
+                    setupComplete: Boolean(data.setupComplete && data.display_name && data.mail_username),
+                    displayName: data.display_name ?? null,
+                    mailUsername: data.mail_username ?? null,
+                });
+            }
+            setLoadingIdentity(false);
+        })();
+    }, [companyId]);
+
 	async function save() {
 		setSaving(true);
-        const html = editor?.getHTML() ?? "";
+        const html = campaign?.html_content ?? "";
         await fetch(`/api/campaigns/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -102,75 +99,120 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
 
 	if (!campaign) return <div className="p-6">Loading...</div>;
 
-	return (
+    const isAutomation = campaign.send_mode === "automation";
+    const triggerLabel = formatTrigger(campaign.trigger_event);
+    const delayValue = campaign.trigger_delay_value ?? 0;
+    const delayUnit = campaign.trigger_delay_unit ?? "minutes";
+    return (
         <div className="max-w-6xl mx-auto py-10 px-6 space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold">Edit Campaign</h1>
+                <h1 className="text-2xl font-semibold">Campaign Preview</h1>
                 <div className="flex items-center gap-2">
-                    {/* Development Tools */}
-                    {process.env.NODE_ENV === 'development' && campaign.status === 'draft' && (
+					{process.env.NODE_ENV === 'development' && campaign.status === 'draft' && (
 						<SimulateSendButton 
-                            campaignId={id}
+							campaignId={id}
 							onSuccess={() => {
 								router.push(`/dashboard/${companyId}/campaigns`);
 							}}
-                        />
-                    )}
+						/>
+					)}
                     <Button variant="outline" disabled={saving} onClick={save}>
                         {saving ? "Saving..." : "Save"}
                     </Button>
-                    <Button disabled={sending} onClick={send}>
-                        {sending ? "Sending..." : "Send"}
+                    <Button disabled={sending || isAutomation || !senderIdentity.setupComplete} onClick={send}>
+                        {!senderIdentity.setupComplete
+                            ? "Complete setup to send"
+                            : isAutomation
+                                ? "Automation-managed"
+                                : sending
+                                    ? "Sending..."
+                                    : "Send"}
                     </Button>
                 </div>
             </div>
+
+            {!loadingIdentity && !senderIdentity.setupComplete && (
+                <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-yellow-100 flex items-center justify-between gap-4">
+                    <div>
+                        <p className="font-medium">Finish your sender setup</p>
+                        <p className="text-sm opacity-80">Set your from name and username before sending this campaign.</p>
+                    </div>
+                    <Button variant="outline" onClick={() => router.push(`/dashboard/${companyId}/settings`)}>
+                        Go to Settings
+                    </Button>
+                </div>
+            )}
+
+            {/* Subject and preview text (editable), preview directly below */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                    <label className="block text-sm font-medium">Subject</label>
-                    <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
-                    <label className="block text-sm font-medium">Preview text</label>
-                    <Input value={preview} onChange={(e) => setPreview(e.target.value)} />
-                    <label className="block text-sm font-medium">Content</label>
-                    <FormattingToolbar editor={editor} />
-                    <div className="rounded-md border border-white/10 bg-white/[0.02] p-2 min-h-[320px]">
-                        <EditorContent editor={editor} />
-                    </div>
-                </div>
-                <div className="space-y-4">
-                    <div className="bg-white rounded-lg p-4 text-black overflow-auto">
-                        <div className="text-sm text-gray-500 mb-2">Preview</div>
-                        {
-                            (() => {
-                                const content = editor?.getHTML() ?? "";
-                                const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-                                const unsubscribeUrl = `${base}/api/unsubscribe?c=0&m=0&sig=demo`;
-                                const footer = renderEmailFooterHtml("MemberMail", unsubscribeUrl, null);
-                                const html = renderEmailWithStyles(`${content}${footer}`, emailStyles);
-                                return <div dangerouslySetInnerHTML={{ __html: html }} />;
-                            })()
-                        }
-                    </div>
-                    <div className="text-sm text-white/70">
-                        Status: {campaign.status} • Recipients: {campaign.recipient_count} • Opens: {campaign.open_count} • Clicks: {campaign.click_count}
-                    </div>
-                    <div className="rounded-xl border border-white/10 overflow-hidden">
-                        <div className="bg-white/5 px-4 py-2 text-white/70 text-sm">Recent events</div>
-                        <div className="divide-y divide-white/5 bg-white/2">
-                            {events.map((e) => (
-                                <div key={e.id} className="flex items-center justify-between px-4 py-2">
-                                    <span className="text-white/80">{e.type}</span>
-                                    <span className="text-white/40 text-sm">{new Date(e.created_at).toLocaleString()}</span>
-                                </div>
-                            ))}
-                            {events.length === 0 && (
-                                <div className="px-4 py-3 text-white/60">No events yet.</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+				<div className="space-y-4">
+					<div className="space-y-3">
+						<label className="block text-sm font-medium">Subject</label>
+						<Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+						<label className="block text-sm font-medium">Preview text</label>
+						<Input value={preview} onChange={(e) => setPreview(e.target.value)} />
+					</div>
+					<div className="bg-white rounded-lg p-4 text-black overflow-auto">
+						<div className="text-sm text-gray-500 mb-2">Preview</div>
+						{(() => {
+							const content = campaign?.html_content ?? "";
+							const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+							const unsubscribeUrl = `${base}/api/unsubscribe?c=0&m=0&sig=demo`;
+							const footer = renderEmailFooterHtml("MemberMail", unsubscribeUrl, null);
+							const html = renderEmailWithStyles(`${content}${footer}`, emailStyles);
+							return <div dangerouslySetInnerHTML={{ __html: html }} />;
+						})()}
+					</div>
+				</div>
+				<div className="space-y-4">
+					<div className="text-sm text-white/70">
+						Status: {campaign.status} • Recipients: {campaign.recipient_count} • Opens: {campaign.open_count} • Clicks: {campaign.click_count}
+					</div>
+					<div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-2">
+						<div className="text-sm font-semibold text-white">Delivery settings</div>
+						<div className="text-xs text-white/60">
+							<span className="font-medium text-white/70">Mode:</span> {isAutomation ? "Automation" : "Manual"}
+						</div>
+						{isAutomation && (
+							<div className="space-y-1 text-xs text-white/60">
+								<div>
+									<span className="font-medium text-white/70">Trigger:</span> {triggerLabel ?? campaign.trigger_event}
+								</div>
+								<div>
+									<span className="font-medium text-white/70">Initial delay:</span> {delayValue} {delayUnit}
+								</div>
+								<div>
+									<span className="font-medium text-white/70">Automation status:</span> {campaign.automation_status}
+								</div>
+							</div>
+						)}
+						<div className="text-xs text-white/60">
+							<span className="font-medium text-white/70">Quiet hours:</span> {quietHoursEnabled ? `${quietHoursStart}:00 - ${quietHoursEnd}:00` : "Disabled"}
+						</div>
+					</div>
+					<div className="rounded-xl border border-white/10 overflow-hidden">
+						<div className="bg-white/5 px-4 py-2 text-white/70 text-sm">Recent events</div>
+						<div className="divide-y divide-white/5 bg-white/2">
+							{events.map((e) => (
+								<div key={e.id} className="flex items-center justify-between px-4 py-2">
+									<span className="text-white/80">{e.type}</span>
+									<span className="text-white/40 text-sm">{new Date(e.created_at).toLocaleString()}</span>
+								</div>
+							))}
+							{events.length === 0 && (
+								<div className="px-4 py-3 text-white/60">No events yet.</div>
+							)}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 	);
 }
+
+
+
+
+
 
 

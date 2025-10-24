@@ -28,8 +28,8 @@ export async function GET(request: Request) {
 		const { url: authUrl, state } = whopSdk.oauth.getAuthorizationUrl({
 			// The redirect URI must match one configured in your Whop app settings
 			redirectUri,
-			// Request permissions to read user information
-			scope: ["read_user"],
+			// Request minimum scopes plus webhook management for automatic webhook setup
+			scope: ["read_user", "developer:manage_webhook"],
 		});
 		
 		// Store the 'next' parameter in a cookie using the state as the key

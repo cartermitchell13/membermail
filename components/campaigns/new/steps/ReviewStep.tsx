@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SimulateSendCard } from "@/components/campaigns/SimulateSendButton";
 import { useMemo, useState } from "react";
+import { getEventLabel } from "@/lib/automations/events";
+import type { AutomationTriggerEvent } from "@/lib/automations/events";
 
 export default function ReviewStep() {
     const {
@@ -20,11 +22,16 @@ export default function ReviewStep() {
         timezone,
         quietHoursEnabled,
         editor,
+        sendMode,
+        triggerEvent,
+        triggerDelayValue,
+        triggerDelayUnit,
+        automationStatus,
     } = useCampaignComposer();
     
     // Preserve hooks order: compute and call hooks unconditionally,
     // and only decide what to render after hooks are called.
-    const isActive = currentStep === 3;
+    const isActive = currentStep === 4;
 
     // Calculate total recipients based on audience mode
     const recipients = audienceMode === 'all_active' 
@@ -42,6 +49,11 @@ export default function ReviewStep() {
 
     // Get HTML content for validation
     const htmlContent = editor?.getHTML() ?? '';
+
+    const automationTriggerLabel =
+        sendMode === 'automation' && triggerEvent
+            ? getEventLabel(triggerEvent as AutomationTriggerEvent)
+            : null;
     
     // Validation checks with detailed status
     const validationChecks = useMemo(() => [
@@ -65,6 +77,18 @@ export default function ReviewStep() {
             status: htmlContent.length > 50,
             severity: 'error' as const,
             message: htmlContent.length > 50 ? 'Content looks good' : 'Email appears to be empty',
+        },
+        {
+            id: 'automation_trigger',
+            label: 'Automation trigger configured',
+            status: sendMode === 'manual' || Boolean(triggerEvent),
+            severity: 'error' as const,
+            message:
+                sendMode === 'manual'
+                    ? 'Manual delivery'
+                    : triggerEvent
+                        ? automationTriggerLabel ?? triggerEvent
+                        : 'Select a trigger event',
         },
         {
             id: 'links',
@@ -95,7 +119,7 @@ export default function ReviewStep() {
             severity: 'info' as const,
             message: timezone || 'Not set',
         },
-    ], [subject, recipients, htmlContent, trackOpens, trackClicks, timezone]);
+    ], [subject, recipients, htmlContent, trackOpens, trackClicks, timezone, sendMode, triggerEvent, automationTriggerLabel]);
 
     // Count issues by severity
     const errors = validationChecks.filter(c => c.severity === 'error' && !c.status);
@@ -266,6 +290,36 @@ export default function ReviewStep() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <div className="text-sm font-medium text-white/60">Send Mode</div>
+                                <div className="flex items-center gap-2">
+                                    <Badge className="bg-white/10 text-white/80">
+                                        {sendMode === 'automation' ? 'Automation' : 'Manual'}
+                                    </Badge>
+                                    {sendMode === 'automation' && triggerEvent && (
+                                        <span className="text-xs text-white/60">{automationTriggerLabel ?? triggerEvent}</span>
+                                    )}
+                                </div>
+                            </div>
+                            {sendMode === 'automation' && triggerEvent && (
+                                <div className="space-y-2">
+                                    <div className="text-sm font-medium text-white/60">Automation Details</div>
+                                    <div className="grid gap-1 text-sm text-white/80">
+                                        <div className="flex items-center justify-between">
+                                            <span>Trigger</span>
+                                            <span>{automationTriggerLabel ?? triggerEvent}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Initial delay</span>
+                                            <span>{triggerDelayValue} {triggerDelayUnit}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Status</span>
+                                            <Badge className="bg-white/10 text-white/80 capitalize">{automationStatus}</Badge>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <div className="text-sm font-medium text-white/60">Timezone</div>
                                 <div className="text-sm text-white/80">{timezone || 'UTC'}</div>

@@ -26,6 +26,7 @@ export type DraftAutoSaveConfig = {
   emailStyles?: EmailStyles;
   debounceMs?: number; // Default 2000ms (2 seconds)
   enabled?: boolean; // Default true
+  canAutoSave?: boolean; // Optional: gate auto-save until user interacts
   onSaveSuccess?: (draftId: string) => void;
   onSaveError?: (error: Error) => void;
 };
@@ -43,6 +44,7 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
     emailStyles,
     debounceMs = 2000,
     enabled = true,
+    canAutoSave = true,
     onSaveSuccess,
     onSaveError,
   } = config;
@@ -126,7 +128,7 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
    * Schedule a debounced save
    */
   const scheduleSave = useCallback(() => {
-    if (!enabled) return;
+    if (!enabled || !canAutoSave) return;
 
     // Clear existing timeout
     if (saveTimeoutRef.current) {
@@ -229,6 +231,10 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
         isFirstRender.current = false;
         return;
       }
+      if (!canAutoSave) {
+        setHasUnsavedChanges(true);
+        return;
+      }
       
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -242,11 +248,11 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
     return () => {
       editor.off('update', handleUpdate);
     };
-  }, [editor, enabled, debounceMs, saveDraft]);
+  }, [editor, enabled, canAutoSave, debounceMs, saveDraft]);
 
   // Auto-save when subject or preview text changes
   useEffect(() => {
-    if (isFirstRender.current || !enabled) return;
+    if (isFirstRender.current || !enabled || !canAutoSave) return;
     scheduleSave();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject, previewText]);
@@ -266,14 +272,13 @@ export function useDraftAutoSave(config: DraftAutoSaveConfig) {
       if (hasUnsavedChanges && enabled) {
         e.preventDefault();
         e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        // Try to save synchronously
-        forceSave();
+        // Do not save here to avoid silent saves; let caller handle route-change prompts
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges, enabled, forceSave]);
+  }, [hasUnsavedChanges, enabled]);
 
   return {
     status,

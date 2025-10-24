@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 
-export default function DashboardPage({
+export default async function DashboardPage({
 	params,
 }: {
-	params: { companyId: string };
+	params: Promise<{ companyId: string }>;
 }) {
 	// Redirect creators straight to the campaigns dashboard for this company
-	redirect(`/dashboard/${params.companyId}/campaigns`);
+	const { companyId } = await params;
+	redirect(`/dashboard/${companyId}/campaigns`);
 }

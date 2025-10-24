@@ -115,8 +115,8 @@ export async function POST(req: NextRequest) {
         const minutePart = parts.find((part) => part.type === "minute");
         const localHour = Number(hourPart?.value ?? "0");
         const localMinute = Number(minutePart?.value ?? "0");
-        const quietStart = Number.isFinite(campaign.quiet_hours_start) ? campaign.quiet_hours_start : 9;
-        const quietEnd = Number.isFinite(campaign.quiet_hours_end) ? campaign.quiet_hours_end : 20;
+        const quietStart = typeof campaign.quiet_hours_start === "number" ? campaign.quiet_hours_start : 9;
+        const quietEnd = typeof campaign.quiet_hours_end === "number" ? campaign.quiet_hours_end : 20;
 
         let minutesToAdd = 0;
         if (localHour < quietStart) {

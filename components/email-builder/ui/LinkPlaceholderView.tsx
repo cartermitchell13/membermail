@@ -20,7 +20,7 @@ export function LinkPlaceholderView({
 	updateAttributes: (attrs: Record<string, any>) => void;
 	deleteNode: () => void;
 	editor: any;
-	getPos: () => number;
+	getPos?: () => number | undefined;
 }) {
 	const [url, setUrl] = useState("");
 	const [linkText, setLinkText] = useState(node.attrs.suggestedText || "");
@@ -78,8 +78,16 @@ export function LinkPlaceholderView({
 		const text = linkText.trim() || normalizedUrl;
 
 		// Get the position of this specific placeholder node
-		const pos = getPos();
-		
+		const pos = (() => {
+			if (typeof getPos === "function") {
+				const value = getPos();
+				if (typeof value === "number") {
+					return value;
+				}
+			}
+			return editor?.state?.selection?.from ?? 0;
+		})();
+
 		// Replace this placeholder node with actual link text at its position
 		editor.chain()
 			.focus()

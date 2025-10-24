@@ -16,7 +16,7 @@ import AIPromptDialogWrapper from "@/components/campaigns/new/modals/AIPromptDia
 export default function NewCampaignPage({ params }: { params: Promise<{ experienceId: string }> }) {
 	const { experienceId } = use(params);
 	return (
-		<CampaignComposerProvider experienceId={experienceId}>
+		<CampaignComposerProvider companyId={experienceId}>
 			{/* Negative margins to counter parent padding and create edge-to-edge layout */}
 			{/* The key is using absolute positioning for the container to escape flex constraints */}
 			<div className="absolute inset-0 flex flex-col">
@@ -35,5 +35,4 @@ export default function NewCampaignPage({ params }: { params: Promise<{ experien
 		</CampaignComposerProvider>
 	);
 }
-
 

@@ -103,6 +103,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
     const triggerLabel = formatTrigger(campaign.trigger_event);
     const delayValue = campaign.trigger_delay_value ?? 0;
     const delayUnit = campaign.trigger_delay_unit ?? "minutes";
+    const quietHoursEnabled = Boolean(campaign.quiet_hours_enabled);
+    const quietHoursStart = typeof campaign.quiet_hours_start === "number" ? campaign.quiet_hours_start : 9;
+    const quietHoursEnd = typeof campaign.quiet_hours_end === "number" ? campaign.quiet_hours_end : 20;
     return (
         <div className="max-w-6xl mx-auto py-10 px-6 space-y-6">
             <div className="flex items-center justify-between">

@@ -14,6 +14,236 @@ export type Database = {
   }
   public: {
     Tables: {
+      automation_enrollments: {
+        Row: {
+          id: number
+          sequence_id: number
+          member_id: number
+          current_step_id: number | null
+          status: string
+          completed_at: string | null
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          sequence_id: number
+          member_id: number
+          current_step_id?: number | null
+          status?: string
+          completed_at?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          sequence_id?: number
+          member_id?: number
+          current_step_id?: number | null
+          status?: string
+          completed_at?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_enrollments_current_step_id_fkey"
+            columns: ["current_step_id"]
+            isOneToOne: false
+            referencedRelation: "automation_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_enrollments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_enrollments_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "automation_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_jobs: {
+        Row: {
+          id: number
+          sequence_id: number | null
+          step_id: number | null
+          campaign_id: number
+          member_id: number
+          scheduled_at: string
+          attempts: number | null
+          status: string
+          payload: Json | null
+          last_error: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          sequence_id?: number | null
+          step_id?: number | null
+          campaign_id: number
+          member_id: number
+          scheduled_at: string
+          attempts?: number | null
+          status?: string
+          payload?: Json | null
+          last_error?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          sequence_id?: number | null
+          step_id?: number | null
+          campaign_id?: number
+          member_id?: number
+          scheduled_at?: string
+          attempts?: number | null
+          status?: string
+          payload?: Json | null
+          last_error?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_jobs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_jobs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_jobs_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "automation_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_jobs_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "automation_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_sequences: {
+        Row: {
+          id: number
+          community_id: number
+          name: string
+          description: string | null
+          trigger_event: string
+          trigger_label: string | null
+          status: string
+          timezone: string
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          community_id: number
+          name: string
+          description?: string | null
+          trigger_event: string
+          trigger_label?: string | null
+          status?: string
+          timezone: string
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          community_id?: number
+          name?: string
+          description?: string | null
+          trigger_event?: string
+          trigger_label?: string | null
+          status?: string
+          timezone?: string
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_sequences_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_steps: {
+        Row: {
+          id: number
+          sequence_id: number
+          campaign_id: number
+          position: number
+          delay_value: number | null
+          delay_unit: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          sequence_id: number
+          campaign_id: number
+          position: number
+          delay_value?: number | null
+          delay_unit?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          sequence_id?: number
+          campaign_id?: number
+          position?: number
+          delay_value?: number | null
+          delay_unit?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_steps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "automation_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_webhooks: {
         Row: {
           id: number
@@ -61,6 +291,8 @@ export type Database = {
       campaigns: {
         Row: {
           audience: Json | null
+          automation_sequence_id: number | null
+          automation_status: string | null
           click_count: number | null
           community_id: number
           content_md: string | null
@@ -72,13 +304,22 @@ export type Database = {
           preview_text: string | null
           recipient_count: number | null
           scheduled_for: string | null
+          send_mode: string | null
           sent_at: string | null
           status: string | null
           subject: string
+          trigger_delay_unit: string | null
+          trigger_delay_value: number | null
+          trigger_event: string | null
+          quiet_hours_enabled: boolean | null
+          quiet_hours_start: number | null
+          quiet_hours_end: number | null
           updated_at: string | null
         }
         Insert: {
           audience?: Json | null
+          automation_sequence_id?: number | null
+          automation_status?: string | null
           click_count?: number | null
           community_id: number
           content_md?: string | null
@@ -90,13 +331,22 @@ export type Database = {
           preview_text?: string | null
           recipient_count?: number | null
           scheduled_for?: string | null
+          send_mode?: string | null
           sent_at?: string | null
           status?: string | null
           subject: string
+          trigger_delay_unit?: string | null
+          trigger_delay_value?: number | null
+          trigger_event?: string | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_start?: number | null
+          quiet_hours_end?: number | null
           updated_at?: string | null
         }
         Update: {
           audience?: Json | null
+          automation_sequence_id?: number | null
+          automation_status?: string | null
           click_count?: number | null
           community_id?: number
           content_md?: string | null
@@ -108,12 +358,26 @@ export type Database = {
           preview_text?: string | null
           recipient_count?: number | null
           scheduled_for?: string | null
+          send_mode?: string | null
           sent_at?: string | null
           status?: string | null
           subject?: string
+          trigger_delay_unit?: string | null
+          trigger_delay_value?: number | null
+          trigger_event?: string | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_start?: number | null
+          quiet_hours_end?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaigns_automation_sequence_id_fkey"
+            columns: ["automation_sequence_id"]
+            isOneToOne: false
+            referencedRelation: "automation_sequences"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campaigns_community_id_fkey"
             columns: ["community_id"]

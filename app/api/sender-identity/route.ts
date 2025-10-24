@@ -68,19 +68,25 @@ export async function POST(req: NextRequest) {
 
   const profileIdentity = await fetchSenderIdentityByUserId(supabase, community.user_id);
 
-  let body: unknown;
+  type SenderIdentityPayload = {
+    display_name?: unknown;
+    mail_username?: unknown;
+  };
+
+  let body: SenderIdentityPayload | null = null;
   try {
-    body = await req.json();
+    const parsed = await req.json();
+    if (parsed && typeof parsed === "object") {
+      body = parsed as SenderIdentityPayload;
+    } else {
+      return json({ error: "Invalid JSON" }, { status: 400 });
+    }
   } catch {
     return json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const displayName = typeof (body as Record<string, unknown>)?.display_name === "string"
-    ? (body as Record<string, unknown>).display_name.trim()
-    : "";
-  const usernameRaw = typeof (body as Record<string, unknown>)?.mail_username === "string"
-    ? (body as Record<string, unknown>).mail_username
-    : "";
+  const displayName = typeof body.display_name === "string" ? body.display_name.trim() : "";
+  const usernameRaw = typeof body.mail_username === "string" ? body.mail_username : "";
 
   if (!displayName) {
     return json({ error: "Display name is required" }, { status: 400 });

@@ -1,4 +1,5 @@
 import { whopSdk } from "@/lib/whop-sdk";
+import type { AppValidScopes } from "@whop/api";
 import { NextResponse } from "next/server";
 
 /**
@@ -25,11 +26,12 @@ export async function GET(request: Request) {
 		console.log("🔍 OAuth Init - Origin:", url.origin);
 		
 		// Get the authorization URL from Whop SDK
+		const requestedScopes = ["read_user", "developer:manage_webhook"] as const;
 		const { url: authUrl, state } = whopSdk.oauth.getAuthorizationUrl({
 			// The redirect URI must match one configured in your Whop app settings
 			redirectUri,
 			// Request minimum scopes plus webhook management for automatic webhook setup
-			scope: ["read_user", "developer:manage_webhook"],
+			scope: requestedScopes as unknown as AppValidScopes[],
 		});
 		
 		// Store the 'next' parameter in a cookie using the state as the key

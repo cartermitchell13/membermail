@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { data: existing, error: existingError } = await supabase
         .from("campaigns")
         .select(
-            "send_mode, trigger_event, trigger_delay_value, trigger_delay_unit, automation_sequence_id, automation_status"
+            "send_mode, trigger_event, trigger_delay_value, trigger_delay_unit, automation_sequence_id, automation_status, quiet_hours_enabled, quiet_hours_start, quiet_hours_end"
         )
         .eq("id", id)
         .single();
@@ -48,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.audience !== undefined) updatePayload.audience = body.audience;
     if (body.status !== undefined) updatePayload.status = body.status;
 
-    const existingSendMode: "manual" | "automation" = existing?.send_mode ?? "manual";
+    const existingSendMode: "manual" | "automation" = existing?.send_mode === "automation" ? "automation" : "manual";
     const requestedSendMode =
         body.send_mode !== undefined ? (body.send_mode === "automation" ? "automation" : "manual") : existingSendMode;
 

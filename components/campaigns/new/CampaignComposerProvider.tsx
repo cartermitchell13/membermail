@@ -1559,8 +1559,6 @@ export function CampaignComposerProvider({
             applyPrefillHtml,
             showAiSidebar,
             setShowAiSidebar,
-            automationTriggerMetadata,
-            setAutomationTriggerMetadata,
             aiMessages,
             aiSelectedText,
             setAiSelectedText,

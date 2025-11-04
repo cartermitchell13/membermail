@@ -20,7 +20,8 @@ const TARGET_EVENTS = [
   "payment_succeeded",
   "payment_failed",
   "refund_created",
-  "course_lesson_interaction.completed",
+  // Use supported SDK event name rather than alias
+  "course_lesson_completed",
 ] as const;
 
 /**

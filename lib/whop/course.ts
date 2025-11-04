@@ -128,20 +128,21 @@ export async function fetchCourseStructure(courseId: string): Promise<CourseStru
   }
 
   const response = await withWhopRetry("courses.getCourse", () => sdk.courses.getCourse({ courseId }));
-  if (!response?.course) {
+  const courseObj = (response as any)?.course ?? (response as any);
+  if (!courseObj) {
     return null;
   }
 
   const course: CourseStructure = {
-    id: response.course.id,
-    title: response.course.title ?? null,
+    id: courseObj.id,
+    title: courseObj.title ?? null,
     chapters:
-      response.course.chapters?.map((chapter) => ({
+      (courseObj.chapters as any[])?.map((chapter: any) => ({
         id: chapter.id,
         title: chapter.title,
         order: chapter.order,
         lessons:
-          chapter.lessons?.map((lesson) => ({
+          (chapter.lessons as any[])?.map((lesson: any) => ({
             id: lesson.id,
             title: lesson.title,
             order: lesson.order,
@@ -183,8 +184,8 @@ export async function listCompanyCourses(companyId: string): Promise<CourseSumma
     }),
   );
 
-  const nodes = response?.company?.courses?.nodes ?? [];
-  return nodes.map((node) => ({
+  const nodes = (response as any)?.company?.courses?.nodes ?? (response as any)?.courses?.nodes ?? [];
+  return (nodes as any[]).map((node: any) => ({
     id: node.id,
     title: node.title ?? null,
     experienceId: node.experience?.id ?? null,
@@ -208,10 +209,10 @@ export async function fetchLessonInteractionsForMember(options: {
   const response = await withWhopRetry("courses.getUserLessonInteractions", () =>
     sdk.courses.getUserLessonInteractions({ courseId }),
   );
-  const chapters = response?.course?.chapters ?? [];
+  const chapters = (response as any)?.course?.chapters ?? (response as any)?.chapters ?? [];
   const interactions: LessonInteraction[] = [];
-  for (const chapter of chapters) {
-    for (const lesson of chapter.lessons ?? []) {
+  for (const chapter of chapters as any[]) {
+    for (const lesson of (chapter.lessons ?? []) as any[]) {
       if (!lesson.lessonInteraction) continue;
       interactions.push({
         lessonId: lesson.id,

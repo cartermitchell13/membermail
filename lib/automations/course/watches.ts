@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchCourseStructure, fetchLessonInteractionsForMember } from "@/lib/whop/course";
 import { upsertCourseProgressState } from "./ingest";
 import type { CourseStepMetadata } from "./types";
-import type { AutomationTriggerEvent } from "@/lib/automations/events";
+import { isCourseAutomationEvent, type AutomationTriggerEvent } from "@/lib/automations/events";
 import {
   computeLessonStatuses,
   isChapterCompleted,
@@ -30,6 +30,9 @@ function normalizeMetadata(raw: unknown, event: AutomationTriggerEvent): CourseS
   if (!raw || typeof raw !== "object") return null;
   const metadata = { ...(raw as Record<string, unknown>) } as CourseStepMetadata;
   if (!metadata.courseId || typeof metadata.courseId !== "string") {
+    return null;
+  }
+  if (!isCourseAutomationEvent(event)) {
     return null;
   }
   metadata.triggerKind = event;

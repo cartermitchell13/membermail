@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { whopSdk } from "@/lib/whop-sdk";
+import { DEV_BYPASS_COMPANY_IDS } from "@/lib/subscriptions/constants";
 
 type AccessTier = "free" | "pro" | "enterprise";
 
@@ -31,6 +32,22 @@ export async function getSubscriptionAccess({
 	companyId?: string | null;
 	headersList?: Headers;
 }): Promise<SubscriptionAccess> {
+	const bypassedCompany = Boolean(companyId && DEV_BYPASS_COMPANY_IDS.has(companyId));
+
+	if (bypassedCompany) {
+		return {
+			tier: "enterprise",
+			canUseAI: true,
+			canSend: true,
+			isCompanyMember: true,
+			userId: null,
+			companyId: companyId ?? null,
+			proAccess: true,
+			enterpriseAccess: true,
+			authorizedUsersCount: undefined,
+		};
+	}
+
 	const effectiveHeaders = headersList ?? (await headers());
 	let userId: string | null = null;
 	let tier: AccessTier = "free";

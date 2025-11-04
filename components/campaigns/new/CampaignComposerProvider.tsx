@@ -13,6 +13,7 @@ import { type EmailStyles, defaultEmailStyles } from "@/components/email-builder
 import { embedStylesInHTML, extractEmailStyles } from "@/lib/email/render-with-styles";
 import { isCourseAutomationEvent, type AutomationTriggerEvent } from "@/lib/automations/events";
 import type { CourseStepMetadata } from "@/lib/automations/course/types";
+import { DEV_BYPASS_COMPANY_IDS } from "@/lib/subscriptions/constants";
 
 type AudienceMode = "all_active" | "tiers" | "active_recent";
 
@@ -256,6 +257,7 @@ export function CampaignComposerProvider({
     const router = useRouter();
     const searchParams = useSearchParams();
     const editor = useCampaignEditor();
+    const isBypassCompany = DEV_BYPASS_COMPANY_IDS.has(companyId);
     const automationEditor = useMemo(() => {
         const flag = searchParams.get("automationEditor");
         if (flag && (flag === "1" || flag.toLowerCase() === "true")) {
@@ -290,17 +292,29 @@ export function CampaignComposerProvider({
     const [user, setUser] = useState<UserInfo>(null);
     const [loadingUser, setLoadingUser] = useState(true);
     const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusState>({
-        tier: "free",
-        canUseAI: false,
-        canSend: false,
-        isCompanyMember: false,
-        loading: true,
+        tier: isBypassCompany ? "enterprise" : "free",
+        canUseAI: isBypassCompany,
+        canSend: isBypassCompany,
+        isCompanyMember: isBypassCompany,
+        loading: !isBypassCompany,
         error: null,
         authorizedUsersCount: null,
     });
     const [paywallReason, setPaywallReason] = useState<"ai" | "send" | null>(null);
 
     const refreshSubscriptionStatus = useCallback(async () => {
+        if (isBypassCompany) {
+            setSubscriptionStatus({
+                tier: "enterprise",
+                canUseAI: true,
+                canSend: true,
+                isCompanyMember: true,
+                loading: false,
+                error: null,
+                authorizedUsersCount: null,
+            });
+            return;
+        }
         setSubscriptionStatus((prev) => ({ ...prev, loading: true, error: null }));
         try {
             const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
@@ -329,7 +343,7 @@ export function CampaignComposerProvider({
                 error: "Unable to load subscription status",
             }));
         }
-    }, [companyId]);
+    }, [companyId, isBypassCompany]);
 
     useEffect(() => {
         void refreshSubscriptionStatus();
@@ -341,6 +355,9 @@ export function CampaignComposerProvider({
 
     const requireSubscriptionFeature = useCallback(
         (feature: "ai" | "send") => {
+            if (isBypassCompany) {
+                return true;
+            }
             const allowed = feature === "ai" ? subscriptionStatus.canUseAI : subscriptionStatus.canSend;
             if (!allowed) {
                 setPaywallReason(feature);
@@ -348,7 +365,7 @@ export function CampaignComposerProvider({
             }
             return true;
         },
-        [subscriptionStatus],
+        [subscriptionStatus, isBypassCompany],
     );
 
     // Compose state
@@ -933,7 +950,11 @@ export function CampaignComposerProvider({
                                 if (isEditingExistingCampaign) {
                                     await saveChanges();
                                 } else {
-                                    await createDraftCampaign();
+                                    const id = await createDraftCampaign();
+                                    if (!id) {
+                                        // Failed to save; keep modal open and do not navigate
+                                        return;
+                                    }
                                 }
                                 const href = pendingHrefRef.current;
                                 setShowLeavePrompt(false);
@@ -1203,6 +1224,7 @@ export function CampaignComposerProvider({
             } catch {}
             if (newId) {
                 toast.success('Draft saved');
+                setEditingCampaignId(newId);
             } else {
                 toast.error('Failed to save draft');
             }

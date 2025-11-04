@@ -152,7 +152,7 @@ export default function AutomationsPage({ params }: { params: Promise<{ experien
       </div>
 
       {/* Standard Flow CTA */}
-      <div className="rounded-lg border border-white/10 bg-black/30 p-4">
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-lg font-semibold">Standard Onboarding Flow</div>
@@ -177,7 +177,7 @@ export default function AutomationsPage({ params }: { params: Promise<{ experien
               // Seed the editor with the appropriate preset HTML before navigation.
               try { sessionStorage.setItem("draft_email_content", buildHtml(it.key)); } catch {}
             }}
-            className="block rounded-lg border border-white/10 hover:border-white/20 transition p-4 bg-black/20"
+            className="block rounded-lg border border-white/10 hover:border-white/20 transition p-4 bg-white/5 hover:bg-white/[0.06]"
           >
             <div className="flex flex-col gap-2">
               <div className="text-lg font-medium">{it.title}</div>

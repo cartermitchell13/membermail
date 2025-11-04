@@ -187,8 +187,8 @@ export default function AutomationsPage({ params }: { params: Promise<{ companyI
   const pausedSequences = useMemo(() => sequences.filter((s) => s.status === "paused"), [sequences]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-black to-[#0A0A0A]">
-      <div className="mx-auto max-w-7xl space-y-8 p-6">
+    <div className="space-y-8">
+      <div className="mx-auto max-w-7xl space-y-8">
         {/* Header with improved visual hierarchy */}
         <header className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -228,7 +228,7 @@ export default function AutomationsPage({ params }: { params: Promise<{ companyI
         </header>
 
         {/* Create New Flow Section - More prominent */}
-        <section className="rounded-xl border border-white/10 bg-gradient-to-br from-[#FA4616]/10 via-black/40 to-black/40 p-6 shadow-xl">
+        <section className="rounded-xl border border-white/10 bg-white/5 p-6">
           <div className="mb-4 flex items-center gap-2">
             <PlusIcon />
             <h2 className="text-lg font-semibold text-white">Create New Flow</h2>
@@ -262,7 +262,7 @@ export default function AutomationsPage({ params }: { params: Promise<{ companyI
 
         {/* Flows List */}
         {loading ? (
-          <div className="flex items-center justify-center rounded-xl border border-white/10 bg-black/40 p-12">
+          <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 p-12">
             <div className="text-center">
               <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
               <p className="text-sm text-white/60">Loading your flows...</p>
@@ -354,7 +354,7 @@ export default function AutomationsPage({ params }: { params: Promise<{ companyI
 
         {/* Learn More Section - Collapsible */}
         <details
-          className="group rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm"
+          className="group rounded-xl border border-white/10 bg-white/5"
           open={showLearnMore}
           onToggle={(event) => setShowLearnMore(event.currentTarget.open)}
         >
@@ -418,7 +418,7 @@ export default function AutomationsPage({ params }: { params: Promise<{ companyI
 // Empty State Component with helpful guidance
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-dashed border-white/20 bg-gradient-to-br from-black/40 to-black/20 p-12">
+    <div className="rounded-xl border border-dashed border-white/20 bg-white/2 p-12">
       <div className="mx-auto max-w-2xl text-center">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FA4616]/20 to-[#FA4616]/5">
           <SparklesIcon />
@@ -647,7 +647,7 @@ function SequenceCard({ sequence, companyId, onRefresh, router }: SequenceCardPr
   const statusConfig = statusConfigs[sequence.status as keyof typeof statusConfigs] ?? statusConfigs.draft;
 
   return (
-    <article className="group rounded-xl border border-white/10 bg-gradient-to-br from-black/60 to-black/40 backdrop-blur-sm transition-all hover:border-white/20 hover:shadow-xl">
+    <article className="group rounded-xl border border-white/10 bg-white/5 transition-all hover:border-white/20 hover:bg-white/[0.06]">
       {/* Card Header */}
       <div className="border-b border-white/10 p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -722,7 +722,7 @@ function SequenceCard({ sequence, companyId, onRefresh, router }: SequenceCardPr
 
         {/* Settings Panel (Collapsible) */}
         {showSettings && (
-          <div className="mt-4 space-y-4 rounded-lg border border-white/10 bg-black/20 p-4">
+          <div className="mt-4 space-y-4 rounded-lg border border-white/10 bg-white/5 p-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-wide text-white/50">Timezone</label>
@@ -785,7 +785,7 @@ function SequenceCard({ sequence, companyId, onRefresh, router }: SequenceCardPr
       {/* Flow Visualization */}
       <div className="p-5">
         {steps.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-white/20 bg-black/20 p-8 text-center">
+          <div className="rounded-lg border border-dashed border-white/20 bg-white/5 p-8 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/5">
               <EmailIcon />
             </div>
@@ -817,7 +817,7 @@ function SequenceCard({ sequence, companyId, onRefresh, router }: SequenceCardPr
                   </div>
                   
                   {/* Step Card */}
-                  <div className="flex-1 rounded-lg border border-white/10 bg-black/40 transition-all hover:border-white/20 hover:bg-black/50">
+                  <div className="flex-1 rounded-lg border border-white/10 bg-white/5 transition-all hover:border-white/20 hover:bg-white/[0.06]">
                     <div className="p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex-1 space-y-1">
@@ -876,7 +876,7 @@ function SequenceCard({ sequence, companyId, onRefresh, router }: SequenceCardPr
         )}
 
         {/* Add Step Section */}
-        <div className="mt-4 rounded-lg border border-dashed border-white/20 bg-gradient-to-br from-white/5 to-transparent p-4">
+        <div className="mt-4 rounded-lg border border-dashed border-white/20 bg-white/2 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium uppercase tracking-wide text-white/40">+ Add Email</span>

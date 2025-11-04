@@ -682,7 +682,7 @@ export function CampaignComposerProvider({
             setAutomationTriggerMetadata(null);
             return;
         }
-        if (!isCourseAutomationEvent(triggerEvent as AutomationTriggerEvent)) {
+        if (!isCourseAutomationEvent(triggerEvent)) {
             setAutomationTriggerMetadata(null);
         }
     }, [triggerEvent]);
@@ -977,13 +977,13 @@ export function CampaignComposerProvider({
             return;
         }
         let courseMetadata: CourseStepMetadata | null = null;
-        if (sendMode === "automation" && triggerEvent && isCourseAutomationEvent(triggerEvent as AutomationTriggerEvent)) {
+        if (sendMode === "automation" && triggerEvent && isCourseAutomationEvent(triggerEvent)) {
             const meta = automationTriggerMetadata;
             if (!meta || !meta.courseId) {
                 toast.error("Select a course for this trigger");
                 return;
             }
-            const eventCode = triggerEvent as AutomationTriggerEvent;
+            const eventCode = triggerEvent as CourseStepMetadata["triggerKind"];
             const requiresLesson =
                 eventCode === "course_lesson_started" ||
                 eventCode === "course_lesson_completed" ||

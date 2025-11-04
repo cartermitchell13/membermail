@@ -252,6 +252,11 @@ export const COURSE_AUTOMATION_EVENTS = new Set<AutomationTriggerEvent>([
   "course_lesson_not_started_after_x_days",
 ]);
 
-export function isCourseAutomationEvent(event: AutomationTriggerEvent): boolean {
-  return COURSE_AUTOMATION_EVENTS.has(event);
+import type { CourseStepMetadata } from "./course/types";
+
+// Type guard: narrows to course trigger kinds
+export function isCourseAutomationEvent(event: AutomationTriggerEvent): event is CourseStepMetadata["triggerKind"];
+export function isCourseAutomationEvent(event: string): event is CourseStepMetadata["triggerKind"];
+export function isCourseAutomationEvent(event: string): event is CourseStepMetadata["triggerKind"] {
+  return COURSE_AUTOMATION_EVENTS.has(event as AutomationTriggerEvent);
 }

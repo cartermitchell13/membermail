@@ -30,6 +30,28 @@ const TARGET_EVENTS = [
  * - Persists `whop_webhook_id` and `webhook_secret` in `company_webhooks`
  */
 export async function ensureCompanyWebhook(companyId: string) {
+  // If Whop SDK credentials are not present, skip in dev/build without erroring
+  const appId = process.env.NEXT_PUBLIC_WHOP_APP_ID;
+  const apiKey = process.env.WHOP_API_KEY;
+  const webhookBase = process.env.APP_URL;
+  if (!appId || !apiKey || appId === "fallback" || apiKey === "fallback") {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[ensureCompanyWebhook] Skipping (missing WHOP env)", { hasAppId: Boolean(appId), hasKey: Boolean(apiKey) });
+      return null;
+    }
+  }
+  // Avoid creating webhooks pointing to localhost unless explicitly allowed
+  if (!webhookBase) {
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[ensureCompanyWebhook] Skipping (missing APP_URL)");
+      return null;
+    }
+  }
+  if (webhookBase && /localhost|127\.0\.0\.1/.test(webhookBase) && process.env.WEBHOOK_ALLOW_LOCALHOST !== "1") {
+    console.info("[ensureCompanyWebhook] Skipping (APP_URL is localhost)", { appUrl: webhookBase });
+    return null;
+  }
+
   const url = getAppWebhookUrl();
   const supabase = getAdminSupabaseClient();
 

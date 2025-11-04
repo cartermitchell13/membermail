@@ -12,6 +12,11 @@ import { Select, type SelectOption } from "@/components/ui/select";
 import type { CourseStructure, CourseSummary } from "@/lib/whop/course";
 import type { CourseStepMetadata } from "@/lib/automations/course/types";
 
+// Type guard to narrow a generic AutomationTriggerEvent to the subset of
+// course-related events accepted by CourseStepMetadata["triggerKind"].
+function isCourseEvent(event: AutomationTriggerEvent): event is CourseStepMetadata["triggerKind"] {
+  return isCourseAutomationEvent(event);
+}
 const DELAY_UNITS: { value: "minutes" | "hours" | "days"; label: string }[] = [
   { value: "minutes", label: "Minutes" },
   { value: "hours", label: "Hours" },
@@ -78,14 +83,14 @@ export default function AutomationStep() {
   }, [sendMode, triggerEvent, setTriggerEvent, setAutomationStatus]);
 
   useEffect(() => {
-    if (!isCourseTrigger || !eventCode) {
+    if (!eventCode || !isCourseEvent(eventCode)) {
       return;
     }
     setAutomationTriggerMetadata((prev) => {
       if (!prev) {
         return {
           courseId: "",
-          courseTitle: null,
+          courseTitle: undefined,
           chapterId: null,
           chapterTitle: null,
           lessonId: null,
@@ -112,7 +117,7 @@ export default function AutomationStep() {
       }
       return changed ? next : prev;
     });
-  }, [eventCode, isCourseTrigger, requiresWaitDays, setAutomationTriggerMetadata]);
+  }, [eventCode, requiresWaitDays, setAutomationTriggerMetadata]);
 
   useEffect(() => {
     if (!isCourseTrigger) {
@@ -194,8 +199,8 @@ export default function AutomationStep() {
     if (!course) return;
     setAutomationTriggerMetadata((prev) => {
       if (!prev || prev.courseId !== course.id) return prev;
-      if (prev.courseTitle === (course.title ?? null)) return prev;
-      return { ...prev, courseTitle: course.title ?? null };
+      if (prev.courseTitle === (course.title ?? undefined)) return prev;
+      return { ...prev, courseTitle: course.title ?? undefined };
     });
   }, [automationTriggerMetadata, courses, isCourseTrigger, setAutomationTriggerMetadata]);
 
@@ -206,8 +211,8 @@ export default function AutomationStep() {
       if (!prev || prev.courseId !== courseStructure.id) return prev;
       let changed = false;
       const next: CourseStepMetadata = { ...prev };
-      if (next.courseTitle !== (courseStructure.title ?? null)) {
-        next.courseTitle = courseStructure.title ?? null;
+      if (next.courseTitle !== (courseStructure.title ?? undefined)) {
+        next.courseTitle = courseStructure.title ?? undefined;
         changed = true;
       }
       if (next.chapterId) {
@@ -284,12 +289,12 @@ export default function AutomationStep() {
       : null;
     setAutomationTriggerMetadata({
       courseId: value,
-      courseTitle: course?.title ?? null,
+      courseTitle: course?.title ?? undefined,
       chapterId: null,
       chapterTitle: null,
       lessonId: null,
       lessonTitle: null,
-      triggerKind: eventCode,
+      triggerKind: (isCourseEvent(eventCode) ? eventCode : "course_started"),
       waitDays: preservedWaitDays,
     });
   };
@@ -303,7 +308,7 @@ export default function AutomationStep() {
         chapterId: value || null,
         chapterTitle: chapter?.title ?? null,
       };
-      if (eventCode) {
+      if (eventCode && isCourseEvent(eventCode)) {
         next.triggerKind = eventCode;
       }
       if (!value) {
@@ -320,7 +325,7 @@ export default function AutomationStep() {
       if (!value) {
         if (!prev.lessonId) return prev;
         const cleared: CourseStepMetadata = { ...prev, lessonId: null, lessonTitle: null };
-        if (eventCode) {
+        if (eventCode && isCourseEvent(eventCode)) {
           cleared.triggerKind = eventCode;
         }
         return cleared;
@@ -337,7 +342,7 @@ export default function AutomationStep() {
         chapterTitle: entry.chapter.title,
         lessonId: value,
         lessonTitle: entry.lesson.title,
-        triggerKind: eventCode ?? prev.triggerKind,
+        triggerKind: (eventCode && isCourseEvent(eventCode)) ? eventCode : prev.triggerKind,
       };
     });
   };

@@ -110,6 +110,11 @@ export type CampaignComposerContextValue = {
     saveDraft: () => void;
     openDraftById: (id: string) => Promise<void>;
     deleteDraftById: (id: string) => Promise<void>;
+    // Editing existing campaign
+    isEditingExistingCampaign: boolean;
+    editingCampaignId: number | null;
+    saveChanges: () => Promise<void>;
+    createDraftCampaign: () => Promise<number | null>;
     collaborationSynced: boolean;
     collaborators: AwarenessUser[];
 
@@ -224,6 +229,7 @@ export type CampaignComposerContextValue = {
 
     // Actions
     create: () => Promise<void>;
+    // Save template remains
     saveAsTemplate: () => Promise<void>;
     addLink: () => void;
     addImage: () => void;
@@ -492,6 +498,10 @@ export function CampaignComposerProvider({
     const [timezone, setTimezone] = useState<string>(defaultTz);
     const [quietHoursEnabled, setQuietHoursEnabled] = useState<boolean>(false);
 
+    // Existing campaign editing state (must be defined before autosave hook)
+    const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
+    const isEditingExistingCampaign = editingCampaignId !== null;
+
     // Draft auto-save integration
     const {
         status: draftStatus,
@@ -508,7 +518,7 @@ export function CampaignComposerProvider({
         previewText,
         emailStyles,
         debounceMs: 2000,
-        enabled: true,
+        enabled: !isEditingExistingCampaign,
         canAutoSave: userInteracted,
     });
 
@@ -654,6 +664,46 @@ export function CampaignComposerProvider({
         }
     }, [editor, searchParams]);
 
+    // Load existing campaign for editing when campaignId is present
+    useEffect(() => {
+        const cid = searchParams.get("campaignId");
+        if (!cid) return;
+        const parsed = Number(cid);
+        if (!Number.isFinite(parsed)) return;
+        if (!editor) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(`/api/campaigns/${parsed}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const c = data.campaign as any;
+                if (!c) return;
+                prefillActiveRef.current = true;
+                setEditingCampaignId(parsed);
+                if (typeof c.subject === 'string') setSubjectState(c.subject);
+                if (typeof c.preview_text === 'string') setPreviewTextState(c.preview_text);
+                if (typeof c.html_content === 'string') {
+                    editor.commands.setContent(c.html_content);
+                    const extractedStyles = extractEmailStyles(c.html_content);
+                    if (extractedStyles) setEmailStyles(extractedStyles);
+                }
+                const sm = c.send_mode === 'automation' ? 'automation' : 'manual';
+                setSendMode(sm);
+                if (sm === 'automation') {
+                    setTriggerEvent(c.trigger_event ?? null);
+                    if (typeof c.trigger_delay_value === 'number') setTriggerDelayValue(Math.max(0, Math.floor(c.trigger_delay_value)));
+                    if (typeof c.trigger_delay_unit === 'string' && ["minutes","hours","days"].includes(c.trigger_delay_unit)) setTriggerDelayUnit(c.trigger_delay_unit);
+                    if (typeof c.automation_status === 'string') setAutomationStatus(c.automation_status);
+                    if (typeof c.automation_sequence_id === 'number') setAutomationSequenceId(c.automation_sequence_id);
+                }
+            } finally {
+                setTimeout(() => { prefillActiveRef.current = false; }, 100);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [searchParams, editor]);
+
     useEffect(() => {
         if (!automationEditor) return;
         if (!automationSequenceId) return;
@@ -691,6 +741,12 @@ export function CampaignComposerProvider({
     useEffect(() => {
         if (typeof window === "undefined") return;
         if (automationEditor) {
+            setShowStartSourceModal(false);
+            setShowDraftsModal(false);
+            return;
+        }
+        // If editing an existing campaign, skip start/drafts selection
+        if (searchParams.get("campaignId")) {
             setShowStartSourceModal(false);
             setShowDraftsModal(false);
             return;
@@ -872,15 +928,17 @@ export function CampaignComposerProvider({
                         </button>
                         <button
                             className="px-3 py-1.5 rounded text-white bg-[#FA4616] hover:bg-[#E23F14] text-sm"
-                            onClick={() => {
-                                // Force save then navigate
-                                saveDraft();
+                            onClick={async () => {
+                                // Persist as campaign draft so it appears in Campaigns and Drafts modal
+                                if (isEditingExistingCampaign) {
+                                    await saveChanges();
+                                } else {
+                                    await createDraftCampaign();
+                                }
                                 const href = pendingHrefRef.current;
-                                setTimeout(() => {
-                                    setShowLeavePrompt(false);
-                                    pendingHrefRef.current = null;
-                                    if (href) window.location.href = href;
-                                }, 200);
+                                setShowLeavePrompt(false);
+                                pendingHrefRef.current = null;
+                                if (href) window.location.href = href;
                             }}
                         >
                             Save as draft
@@ -1014,7 +1072,10 @@ export function CampaignComposerProvider({
                 return { type: "tiers", tiers: selectedTiers } as const;
             })();
             // Embed styles in HTML before saving
-            const htmlContent = editor?.getHTML() ?? "";
+            let htmlContent = editor?.getHTML() ?? "";
+            if (!htmlContent || htmlContent.trim().length === 0) {
+                htmlContent = "<p></p>";
+            }
             const htmlWithStyles = embedStylesInHTML(htmlContent, emailStyles);
             const normalizedDelayValue =
                 sendMode === "automation" ? Math.max(0, Math.floor(triggerDelayValue ?? 0)) : null;
@@ -1097,6 +1158,99 @@ export function CampaignComposerProvider({
         automationEditor,
         automationReturnTo,
     ]);
+
+    // Create a draft campaign record (no navigation)
+    const createDraftCampaign = useCallback(async (): Promise<number | null> => {
+        try {
+            const resolveRes = await fetch(`/api/communities/resolve?companyId=${companyId}`);
+            const { id: community_id } = resolveRes.ok ? await resolveRes.json() : { id: 1 };
+
+            const htmlContent = editor?.getHTML() ?? "";
+            const htmlWithStyles = embedStylesInHTML(htmlContent, emailStyles);
+            const normalizedDelayValue =
+                sendMode === "automation" ? Math.max(0, Math.floor(triggerDelayValue ?? 0)) : null;
+            const effectiveSubject = subject?.trim() ? subject : "Untitled";
+
+            const body: any = {
+                subject: effectiveSubject,
+                preview_text: previewText ?? "",
+                html_content: htmlWithStyles,
+                community_id,
+                audience: { type: "all_active" },
+                send_mode: sendMode,
+                trigger_event: sendMode === 'automation' ? (triggerEvent ?? null) : null,
+                trigger_delay_value: normalizedDelayValue,
+                trigger_delay_unit: sendMode === 'automation' ? triggerDelayUnit : null,
+                automation_status: sendMode === 'automation' ? automationStatus : null,
+                quiet_hours_enabled: quietHoursEnabled,
+                quiet_hours_start: 9,
+                quiet_hours_end: 20,
+                automation_sequence_id: sendMode === 'automation' ? (automationSequenceId ?? null) : null,
+            };
+
+            const res = await fetch("/api/campaigns", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) return null;
+            const data = await res.json();
+            const newId = Number(data?.campaign?.id ?? 0) || null;
+            try {
+                if (draftId) {
+                    await fetch(`/api/drafts/${draftId}?companyId=${companyId}`, { method: 'DELETE' });
+                }
+            } catch {}
+            if (newId) {
+                toast.success('Draft saved');
+            } else {
+                toast.error('Failed to save draft');
+            }
+            return newId;
+        } catch {
+            toast.error('Error saving draft');
+            return null;
+        }
+    }, [companyId, subject, previewText, editor, emailStyles, sendMode, triggerEvent, triggerDelayValue, triggerDelayUnit, automationStatus, automationSequenceId, quietHoursEnabled, draftId]);
+
+    const saveChanges = useCallback(async () => {
+        if (!isEditingExistingCampaign || !editingCampaignId) return;
+        if (!subject.trim()) {
+            toast.error("Please add a subject line");
+            return;
+        }
+        try {
+            // Embed styles in HTML before saving
+            const htmlContent = editor?.getHTML() ?? "";
+            const htmlWithStyles = embedStylesInHTML(htmlContent, emailStyles);
+
+            const body: any = {
+                subject,
+                preview_text: previewText,
+                html_content: htmlWithStyles,
+                send_mode: sendMode,
+            };
+            if (sendMode === 'automation') {
+                body.trigger_event = triggerEvent;
+                body.trigger_delay_value = Math.max(0, Math.floor(triggerDelayValue ?? 0));
+                body.trigger_delay_unit = triggerDelayUnit;
+                body.automation_status = automationStatus;
+                body.automation_sequence_id = automationSequenceId ?? null;
+            }
+            const res = await fetch(`/api/campaigns/${editingCampaignId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (res.ok) {
+                toast.success('Draft saved');
+            } else {
+                toast.error('Failed to save draft');
+            }
+        } catch {
+            toast.error('Error saving draft');
+        }
+    }, [isEditingExistingCampaign, editingCampaignId, subject, previewText, editor, emailStyles, sendMode, triggerEvent, triggerDelayValue, triggerDelayUnit, automationStatus, automationSequenceId]);
 
     const saveAsTemplate = useCallback(async () => {
         if (!editor) return;
@@ -1526,6 +1680,10 @@ export function CampaignComposerProvider({
             saveDraft,
             openDraftById,
             deleteDraftById,
+            isEditingExistingCampaign,
+            editingCampaignId,
+            saveChanges,
+            createDraftCampaign,
             collaborationSynced,
             collaborators,
             showPreview,
@@ -1668,6 +1826,10 @@ export function CampaignComposerProvider({
             saveDraft,
             openDraftById,
             deleteDraftById,
+            isEditingExistingCampaign,
+            editingCampaignId,
+            saveChanges,
+            createDraftCampaign,
             collaborationSynced,
             collaborators,
             showPreview,

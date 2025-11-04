@@ -28,7 +28,7 @@ export default function UpgradePage() {
 	return (
 		<SidebarProvider>
 			<div className="min-h-screen bg-black flex">
-				<AppSidebar experienceId="" />
+				<AppSidebar />
 				<main className="relative flex-1 min-h-0 m-4 h-[calc(100vh-2rem)] rounded-2xl border border-white/10 bg-[#111111] text-white overflow-auto">
 					<div className="px-8 pt-8 pb-8 space-y-8">
 						{/* Header section */}

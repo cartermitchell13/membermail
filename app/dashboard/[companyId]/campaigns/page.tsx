@@ -2,10 +2,11 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { ButtonLink } from "@/components/ui/button-link";
 import { cn } from "@/lib/ui/cn";
+import DeleteCampaignButton from "@/components/campaigns/DeleteCampaignButton";
 // Avoid importing client-only utilities in server components
 
-async function getCampaigns(baseUrl: string) {
-	const res = await fetch(`${baseUrl}/api/campaigns`, { cache: "no-store" });
+async function getCampaigns(baseUrl: string, companyId: string) {
+	const res = await fetch(`${baseUrl}/api/campaigns?companyId=${encodeURIComponent(companyId)}`, { cache: "no-store" });
 	if (!res.ok) return [] as any[];
 	const data = await res.json();
 	return data.campaigns as any[];
@@ -34,7 +35,7 @@ export default async function CampaignsListPage({ params }: { params: Promise<{ 
 	const proto = h.get("x-forwarded-proto") ?? "http";
 	const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
 	const baseUrl = `${proto}://${host}`;
-	const campaigns = await getCampaigns(baseUrl);
+	const campaigns = await getCampaigns(baseUrl, companyId);
 	
 	return (
 		<div className="space-y-6">
@@ -96,12 +97,17 @@ export default async function CampaignsListPage({ params }: { params: Promise<{ 
 						<span></span>
 					</div>
 					<div className="divide-y divide-white/5 bg-white/2">
-						{campaigns.map((c) => (
-							<Link 
-								key={c.id} 
-								href={`/dashboard/${companyId}/campaigns/${c.id}`}
-								className="block hover:bg-white/[0.04] transition-colors cursor-pointer group"
-							>
+							{campaigns.map((c) => {
+								const isDraft = c.status === 'draft';
+								const href = isDraft 
+									? `/dashboard/${companyId}/campaigns/new?campaignId=${c.id}`
+									: `/dashboard/${companyId}/campaigns/${c.id}`;
+								return (
+									<Link 
+										key={c.id} 
+										href={href}
+										className="block hover:bg-white/[0.04] transition-colors cursor-pointer group"
+									>
 								{/* Desktop Layout */}
 								<div className="hidden lg:grid grid-cols-[1fr_140px_140px_140px_100px] items-center px-4 py-3">
 									<div className="truncate font-medium group-hover:text-white transition-colors">{c.subject}</div>
@@ -121,7 +127,7 @@ export default async function CampaignsListPage({ params }: { params: Promise<{ 
 									</div>
 									<div className="text-white/70">{formatSentDate(c.sent_at)}</div>
 									<div className="text-white/70">{c.open_count} / {c.click_count}</div>
-									<div className="flex justify-end">
+									<div className="flex justify-end items-center gap-2">
 										<span className={cn(
 											"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all",
 											"bg-[#FA4616]/10 text-[#FA4616] border border-[#FA4616]/20",
@@ -135,6 +141,9 @@ export default async function CampaignsListPage({ params }: { params: Promise<{ 
 												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
 											</svg>
 										</span>
+                                        {isDraft && (
+                                            <DeleteCampaignButton id={c.id} />
+                                        )}
 									</div>
 								</div>
 								
@@ -171,7 +180,7 @@ export default async function CampaignsListPage({ params }: { params: Promise<{ 
 											</svg>
 											<span className="text-white/70">{c.open_count}</span>
 										</div>
-										<div className="flex items-center gap-1.5">
+									<div className="flex items-center gap-1.5">
 											<svg className="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
 											</svg>
@@ -179,8 +188,9 @@ export default async function CampaignsListPage({ params }: { params: Promise<{ 
 										</div>
 									</div>
 								</div>
-							</Link>
-						))}
+								</Link>
+								);
+							})}
 					</div>
 				</div>
 			)}

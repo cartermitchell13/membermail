@@ -247,7 +247,7 @@ export default async function MetricsPage({
 							{recentCampaigns.map((campaign) => (
 								<Link
 									key={campaign.id}
-									href={`./campaigns/${campaign.id}`}
+                                    href={`../campaigns/${campaign.id}`}
 									className="grid grid-cols-[1fr_120px_120px_120px_120px] items-center px-4 py-3 hover:bg-white/[0.04] transition-colors"
 								>
 									<div className="space-y-1">
@@ -305,7 +305,7 @@ export default async function MetricsPage({
 									{topCampaigns.map((campaign, index) => (
 										<Link
 											key={campaign.id}
-											href={`./campaigns/${campaign.id}`}
+                                            href={`../campaigns/${campaign.id}`}
 											className="flex items-center gap-4 p-4 hover:bg-white/[0.04] transition-colors"
 										>
 											<div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-white/70 font-semibold text-sm">
@@ -533,8 +533,8 @@ export default async function MetricsPage({
 						<p className="text-white/50 mb-8 text-base leading-relaxed">
 							Create and send campaigns to start tracking your email performance metrics.
 						</p>
-						<Link
-							href="./campaigns/new"
+                        <Link
+                            href="../campaigns/new"
 							className={
 								"inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors " +
 								"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FA4616] focus-visible:ring-offset-2 focus-visible:ring-offset-black " +

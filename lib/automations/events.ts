@@ -182,6 +182,7 @@ const EVENT_DEFINITIONS: EventDefinition[] = [
       "course_lesson_completed",
       "course.lesson_completed",
       "course_lesson_interaction.completed",
+      "course_lesson_interaction_completed",
     ],
     label: "Course: Lesson Completed",
   },

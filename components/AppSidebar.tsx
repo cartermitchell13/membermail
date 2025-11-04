@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Megaphone, BarChart3, Users, Settings as SettingsIcon, Crown, Bot } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
 	Sidebar,
 	SidebarContent,
@@ -26,25 +27,75 @@ type SidebarProps = {
 };
 
 export default function AppSidebar({ experienceId, companyId }: SidebarProps) {
-	const pathname = usePathname();
-	// Use dashboard path for company, experience path for experience
-	const base = companyId ? `/dashboard/${companyId}` : `/experiences/${experienceId}`;
+    const pathname = usePathname();
+    // Resolve a base path even when props are not provided (e.g., on /upgrade)
+    const hasCompany = typeof companyId === "string" && companyId.length > 0;
+    const hasExperience = typeof experienceId === "string" && experienceId.length > 0;
+
+    const [resolvedBase, setResolvedBase] = useState<string | null>(null);
+
+    // Prefer explicit props
+    useEffect(() => {
+        if (hasCompany) {
+            setResolvedBase(`/dashboard/${companyId}`);
+            return;
+        }
+        if (hasExperience) {
+            setResolvedBase(`/experiences/${experienceId}`);
+            return;
+        }
+    }, [hasCompany, hasExperience, companyId, experienceId]);
+
+    // Fallback: derive from current pathname
+    useEffect(() => {
+        if (resolvedBase || !pathname) return;
+        const dash = pathname.match(/^\/dashboard\/([^/]+)/);
+        if (dash) {
+            setResolvedBase(`/dashboard/${dash[1]}`);
+            return;
+        }
+        const exp = pathname.match(/^\/experiences\/([^/]+)/);
+        if (exp) {
+            setResolvedBase(`/experiences/${exp[1]}`);
+        }
+    }, [pathname, resolvedBase]);
+
+    // Fallback: restore last known base from localStorage
+    useEffect(() => {
+        if (resolvedBase) return;
+        try {
+            const stored = localStorage.getItem("mm:lastBasePath");
+            if (stored) setResolvedBase(stored);
+        } catch {}
+    }, [resolvedBase]);
+
+    // Persist base for future pages (like /upgrade)
+    useEffect(() => {
+        if (!resolvedBase) return;
+        try { localStorage.setItem("mm:lastBasePath", resolvedBase); } catch {}
+    }, [resolvedBase]);
+
+    const base = resolvedBase;
     const { open } = useSidebar();
 
-    const items = [
-        { label: "Campaigns", href: `${base}/campaigns`, match: `${base}/campaigns`, icon: Megaphone },
-        { label: "Automations", href: `${base}/automations`, match: `${base}/automations`, icon: Bot },
-        { label: "Metrics", href: `${base}/metrics`, match: `${base}/metrics`, icon: BarChart3 },
-        { label: "Members", href: `${base}/members`, match: `${base}/members`, icon: Users },
-        { label: "Settings", href: `${base}/settings`, match: `${base}/settings`, icon: SettingsIcon },
-        { label: "Upgrade", href: `/upgrade`, match: `/upgrade`, icon: Crown, highlight: true },
-    ];
+	    const items = [
+			...(base
+				? [
+					{ label: "Campaigns", href: `${base}/campaigns`, match: `${base}/campaigns`, icon: Megaphone },
+					{ label: "Automations", href: `${base}/automations`, match: `${base}/automations`, icon: Bot },
+					{ label: "Metrics", href: `${base}/metrics`, match: `${base}/metrics`, icon: BarChart3 },
+					{ label: "Members", href: `${base}/members`, match: `${base}/members`, icon: Users },
+					{ label: "Settings", href: `${base}/settings`, match: `${base}/settings`, icon: SettingsIcon },
+				]
+				: []),
+	        { label: "Upgrade", href: `/upgrade`, match: `/upgrade`, icon: Crown, highlight: true },
+	    ];
 
 	return (
 		<TooltipProvider delayDuration={100}>
 			<Sidebar collapsible="icon">
 				<SidebarHeader>
-					<Link href={`${base}/campaigns`} className="flex items-center gap-2 no-underline text-white hover:text-white">
+					<Link href={base ? `${base}/campaigns` : `/upgrade`} className="flex items-center gap-2 no-underline text-white hover:text-white">
 						<Image src="/assets/logos/mm-logo.png" alt="MemberMail" width={28} height={28} className="rounded" />
 						{open && <span className="text-4 font-semibold font-geist text-white">membermail</span>}
 					</Link>

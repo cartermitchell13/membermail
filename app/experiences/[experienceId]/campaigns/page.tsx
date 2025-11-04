@@ -38,8 +38,8 @@ export default async function CampaignsListPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<h1 className="text-4xl font-semibold tracking-tight">Campaigns</h1>
-				<ButtonLink
-					href="./campaigns/new"
+                <ButtonLink
+                    href="./new"
 					variant="default"
 					size="md"
 				>
@@ -59,8 +59,8 @@ export default async function CampaignsListPage() {
 						<p className="text-white/50 mb-8 text-base leading-relaxed">
 							Get started by creating your first email campaign. Reach your members with personalized messages, track engagement, and grow your community.
 						</p>
-						<ButtonLink
-							href="./campaigns/new"
+                        <ButtonLink
+                            href="./new"
 							variant="default"
 							size="lg"
 							className="inline-flex items-center gap-2"
@@ -88,8 +88,8 @@ export default async function CampaignsListPage() {
 								<div className="text-white/70">{c.status}</div>
 								<div className="text-white/70">{formatSentDate(c.sent_at)}</div>
 								<div className="text-white/70">{c.open_count} / {c.click_count}</div>
-								<div className="text-right">
-									<Link className="text-accent-9 underline" href={`./campaigns/${c.id}`}>Open</Link>
+                                <div className="text-right">
+                                    <Link className="text-accent-9 underline" href={`./${c.id}`}>Open</Link>
 								</div>
 							</div>
 						))}

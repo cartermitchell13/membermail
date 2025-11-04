@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCampaignComposer } from "../CampaignComposerProvider";
 
-type DraftRecord = {
-  id: string;
-  subject: string | null;
-  preview_text: string | null;
+type CampaignRow = {
+  id: number;
+  subject: string;
+  status: string | null;
   html_content: string | null;
-  updated_at: string;
+  updated_at: string | null;
 };
 
 function formatTimeAgo(iso: string) {
@@ -29,12 +29,10 @@ export default function DraftsModal() {
     companyId,
     showDraftsModal,
     setShowDraftsModal,
-    openDraftById,
-    deleteDraftById,
   } = useCampaignComposer();
 
   const [loading, setLoading] = useState(false);
-  const [drafts, setDrafts] = useState<DraftRecord[]>([]);
+  const [drafts, setDrafts] = useState<CampaignRow[]>([]);
 
   // Load drafts when opened
   useEffect(() => {
@@ -42,10 +40,10 @@ export default function DraftsModal() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/drafts?companyId=${companyId}`);
+        const res = await fetch(`/api/campaigns?companyId=${companyId}&status=draft`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          const list: DraftRecord[] = Array.isArray(data.drafts) ? data.drafts : [];
+          const list: CampaignRow[] = Array.isArray(data.campaigns) ? data.campaigns : [];
           setDrafts(list);
         }
       } finally {
@@ -81,8 +79,7 @@ export default function DraftsModal() {
                 <button
                   className="px-3 py-1.5 rounded bg-[#FA4616] text-white hover:bg-[#E23F14] text-sm"
                   onClick={async () => {
-                    await openDraftById(mostRecent.id);
-                    setShowDraftsModal(false);
+                    window.location.assign(`/dashboard/${companyId}/campaigns/new?campaignId=${mostRecent.id}`);
                   }}
                 >
                   Open
@@ -91,7 +88,7 @@ export default function DraftsModal() {
                   className="px-3 py-1.5 rounded border border-white/20 text-white hover:bg-white/10 text-sm"
                   onClick={async () => {
                     if (!confirm("Delete this draft?")) return;
-                    await deleteDraftById(mostRecent.id);
+                    await fetch(`/api/campaigns/${mostRecent.id}`, { method: 'DELETE' });
                     setDrafts((prev) => prev.filter((d) => d.id !== mostRecent.id));
                   }}
                 >
@@ -112,7 +109,7 @@ export default function DraftsModal() {
                 {drafts.map((d) => (
                   <div key={d.id} className="border border-white/10 rounded-lg overflow-hidden bg-white/5 flex flex-col">
                     <div className="p-3 space-y-1.5 flex-1 min-h-0">
-                      <div className="text-sm text-white/60">Updated {formatTimeAgo(d.updated_at)}</div>
+                      <div className="text-sm text-white/60">Updated {d.updated_at ? formatTimeAgo(d.updated_at) : "-"}</div>
                       <div className="font-medium truncate text-white">{d.subject || "Untitled"}</div>
                       <div className="text-xs text-white/50 line-clamp-2" dangerouslySetInnerHTML={{ __html: d.html_content || "" }} />
                     </div>
@@ -120,8 +117,7 @@ export default function DraftsModal() {
                       <button
                         className="px-3 py-1.5 rounded bg-[#FA4616] text-white hover:bg-[#E23F14] text-sm"
                         onClick={async () => {
-                          await openDraftById(d.id);
-                          setShowDraftsModal(false);
+                          window.location.assign(`/dashboard/${companyId}/campaigns/new?campaignId=${d.id}`);
                         }}
                       >
                         Open
@@ -130,7 +126,7 @@ export default function DraftsModal() {
                         className="px-3 py-1.5 rounded border border-white/20 text-white hover:bg-white/10 text-sm"
                         onClick={async () => {
                           if (!confirm("Delete this draft?")) return;
-                          await deleteDraftById(d.id);
+                          await fetch(`/api/campaigns/${d.id}`, { method: 'DELETE' });
                           setDrafts((prev) => prev.filter((x) => x.id !== d.id));
                         }}
                       >
@@ -147,4 +143,3 @@ export default function DraftsModal() {
     </div>
   );
 }
-

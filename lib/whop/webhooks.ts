@@ -15,7 +15,7 @@ function getAppWebhookUrl(): string {
   return `${base}/api/whop/webhook`;
 }
 
-type AnyWebhookEvent = WebhookEvent | "course_lesson_interaction.completed";
+type AnyWebhookEvent = WebhookEvent | "course_lesson_interaction_completed";
 
 const TARGET_EVENTS: AnyWebhookEvent[] = [
   "membership_went_valid",
@@ -25,8 +25,8 @@ const TARGET_EVENTS: AnyWebhookEvent[] = [
   "refund_created",
   // Course lesson completion webhook (documented here:
   // https://docs.whop.com/api-reference/course-lesson-interactions/courselessoninteraction-completed)
-  // Note: not yet present in SDK WebhookEvent union in our version
-  "course_lesson_interaction.completed",
+  // Use underscore variant as required by API
+  "course_lesson_interaction_completed",
 ] as const;
 
 /**

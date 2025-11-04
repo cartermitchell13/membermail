@@ -11,6 +11,9 @@ export default function TopStepperBar() {
         currentStep,
         setCurrentStep,
         create,
+        saveChanges,
+        isEditingExistingCampaign,
+        createDraftCampaign,
         draftStatus,
         hasUnsavedChanges,
         setShowPreview,
@@ -61,7 +64,10 @@ export default function TopStepperBar() {
                     </div>
                     <div className="flex items-center gap-3">
                         <Button variant="secondary" onClick={() => setShowPreview(true)}>Preview</Button>
-                        <Button onClick={create} disabled={saving}>{saving ? "Saving…" : "Save email"}</Button>
+                        <Button variant="outline" onClick={() => (isEditingExistingCampaign ? saveChanges() : createDraftCampaign())}>Save draft</Button>
+                        <Button onClick={isEditingExistingCampaign ? saveChanges : create} disabled={saving}>
+                            {saving ? "Saving…" : (isEditingExistingCampaign ? "Save changes" : "Save email")}
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -108,11 +114,12 @@ export default function TopStepperBar() {
                         <>
                             {/* Preview button: opens the full email preview modal so users can see their content rendered */}
                             <Button variant="secondary" onClick={() => setShowPreview(true)}>Preview</Button>
+                            <Button variant="outline" onClick={() => (isEditingExistingCampaign ? saveChanges() : createDraftCampaign())}>Save draft</Button>
                             <Button onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}>Next</Button>
                         </>
                     ) : (
-                        <Button onClick={create} disabled={saving}>
-                            {saving ? "Creating..." : "Create Campaign"}
+                        <Button onClick={isEditingExistingCampaign ? saveChanges : create} disabled={saving}>
+                            {saving ? (isEditingExistingCampaign ? "Saving..." : "Creating...") : (isEditingExistingCampaign ? "Save Changes" : "Create Campaign")}
                         </Button>
                     )}
                 </div>

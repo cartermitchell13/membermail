@@ -3,13 +3,45 @@ import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 import { renderEmail } from "@/lib/email/render";
 
 export async function GET(req: NextRequest) {
-	const supabase = getAdminSupabaseClient();
-	const { data, error } = await supabase
-		.from("campaigns")
-		.select("id, subject, status, send_mode, trigger_event, trigger_delay_value, trigger_delay_unit, automation_sequence_id, automation_status, sent_at, recipient_count, open_count, click_count, created_at")
-		.order("created_at", { ascending: false });
-	if (error) return new Response("Error", { status: 500 });
-	return Response.json({ campaigns: data });
+    const supabase = getAdminSupabaseClient();
+    const url = new URL(req.url);
+    const companyId = url.searchParams.get("companyId");
+    const statusFilter = url.searchParams.get("status");
+
+    // Resolve companyId -> community.id when provided
+    let communityId: number | null = null;
+    if (companyId) {
+        const { data: community, error: communityErr } = await supabase
+            .from("communities")
+            .select("id")
+            .eq("whop_community_id", companyId)
+            .maybeSingle();
+        if (communityErr) return new Response("Error", { status: 500 });
+        communityId = community?.id ?? null;
+    }
+
+    if (companyId && communityId === null) {
+        // Company provided but not resolved yet: return empty list
+        return Response.json({ campaigns: [] });
+    }
+
+    let query = supabase
+        .from("campaigns")
+        .select(
+            "id, subject, status, send_mode, trigger_event, trigger_delay_value, trigger_delay_unit, automation_sequence_id, automation_status, sent_at, recipient_count, open_count, click_count, created_at, updated_at, html_content"
+        )
+        .order("updated_at", { ascending: false });
+
+    if (communityId !== null) {
+        query = query.eq("community_id", communityId);
+    }
+    if (statusFilter) {
+        query = query.eq("status", statusFilter);
+    }
+
+    const { data, error } = await query;
+    if (error) return new Response("Error", { status: 500 });
+    return Response.json({ campaigns: data });
 }
 
 export async function POST(req: NextRequest) {

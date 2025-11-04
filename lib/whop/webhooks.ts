@@ -1,4 +1,5 @@
 import { whopSdk } from "@/lib/whop-sdk";
+import type { WebhookEvent } from "@whop/api";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
 function requireEnv(name: string): string {
@@ -14,12 +15,18 @@ function getAppWebhookUrl(): string {
   return `${base}/api/whop/webhook`;
 }
 
-const TARGET_EVENTS = [
+type AnyWebhookEvent = WebhookEvent | "course_lesson_interaction.completed";
+
+const TARGET_EVENTS: AnyWebhookEvent[] = [
   "membership_went_valid",
   "membership_went_invalid",
   "payment_succeeded",
   "payment_failed",
   "refund_created",
+  // Course lesson completion webhook (documented here:
+  // https://docs.whop.com/api-reference/course-lesson-interactions/courselessoninteraction-completed)
+  // Note: not yet present in SDK WebhookEvent union in our version
+  "course_lesson_interaction.completed",
 ] as const;
 
 /**
@@ -75,7 +82,7 @@ export async function ensureCompanyWebhook(companyId: string) {
         id: existing.id,
         apiVersion: "v5",
         enabled: true,
-        events: [...TARGET_EVENTS],
+        events: [...(TARGET_EVENTS as unknown as WebhookEvent[])],
         url,
       });
       webhookId = updated?.id ?? existing.id;
@@ -85,7 +92,7 @@ export async function ensureCompanyWebhook(companyId: string) {
       const created = await whopSdk.webhooks.createWebhook({
         apiVersion: "v5",
         enabled: true,
-        events: [...TARGET_EVENTS],
+        events: [...(TARGET_EVENTS as unknown as WebhookEvent[])],
         resourceId: companyId,
         url,
       });

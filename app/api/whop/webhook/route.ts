@@ -51,7 +51,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   // Extract company id from webhook payload to load the correct secret
-  const normalizedEvent = normalizeWhopEvent(parsed?.action);
+  // Some Whop payloads use `type` while the SDK validator uses `action`
+  const actionOrType = parsed?.action ?? parsed?.type;
+  const normalizedEvent = normalizeWhopEvent(actionOrType);
   const extracted = extractAutomationContext(parsed?.data ?? {});
 
   // Try primary path: lookup secret by extracted company id

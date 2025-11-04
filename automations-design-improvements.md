@@ -137,3 +137,5 @@ Completely redesigned the automations page with a user-first approach, improving
 - Responsive design with mobile-first approach
 - Smooth transitions and animations
 
+
+

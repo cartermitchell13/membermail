@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { data: existing, error: existingError } = await supabase
         .from("campaigns")
         .select(
-            "send_mode, trigger_event, trigger_delay_value, trigger_delay_unit, automation_sequence_id, automation_status, quiet_hours_enabled, quiet_hours_start, quiet_hours_end"
+            "send_mode, trigger_event, trigger_delay_value, trigger_delay_unit, automation_sequence_id, automation_status, quiet_hours_enabled, quiet_hours_start, quiet_hours_end, automation_trigger_metadata"
         )
         .eq("id", id)
         .single();
@@ -108,6 +108,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
                 : existing?.automation_status ?? "draft"
             : null;
 
+    const automationTriggerMetadata =
+        requestedSendMode === "automation"
+            ? body.automation_trigger_metadata !== undefined
+                ? body.automation_trigger_metadata
+                : existing?.automation_trigger_metadata ?? null
+            : null;
+
     const parseHour = (value: unknown, fallback: number) => {
         const hour = Number.parseInt(String(value ?? fallback), 10);
         if (Number.isNaN(hour)) return fallback;
@@ -129,6 +136,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     updatePayload.trigger_delay_unit = triggerDelayUnit;
     updatePayload.automation_sequence_id = automationSequenceId;
     updatePayload.automation_status = automationStatus;
+    updatePayload.automation_trigger_metadata = automationTriggerMetadata;
 
     const { data, error } = await supabase
         .from("campaigns")

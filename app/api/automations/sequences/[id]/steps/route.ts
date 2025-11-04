@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         const delayValue = Math.max(0, Number.parseInt(body?.delayValue ?? 0, 10) || 0);
         const delayUnit = ["minutes", "hours", "days"].includes(body?.delayUnit) ? body.delayUnit : "minutes";
+        const metadata = body?.metadata && typeof body.metadata === "object" ? body.metadata : null;
 
         const supabase = getAdminSupabaseClient();
 
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 position: nextPosition,
                 delay_value: delayValue,
                 delay_unit: delayUnit,
+                metadata,
             })
             .select()
             .single();

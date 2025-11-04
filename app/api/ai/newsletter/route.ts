@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { env } from "@/lib/env";
+import { getSubscriptionAccess } from "@/lib/subscriptions/access";
 
 const ALLOWED_NODE_TYPES = new Set([
 	"doc",
@@ -195,6 +196,19 @@ export async function POST(req: NextRequest) {
 	const prompt = String(body?.prompt || "").trim();
 	if (!prompt) return new Response("Missing prompt", { status: 400 });
 	if (!env.OPENAI_API_KEY) return new Response("OPENAI_API_KEY not configured", { status: 400 });
+
+	const companyId = typeof body?.companyId === "string" ? body.companyId : null;
+	const access = await getSubscriptionAccess({ companyId });
+	if (!access.canUseAI) {
+		return Response.json(
+			{
+				success: false,
+				error: "AI features require a Pro or Enterprise subscription",
+				tier: access.tier,
+			},
+			{ status: 402 },
+		);
+	}
 
 	// Extract context for iterative editing
 	const mode = body?.mode || "generate"; // generate | edit | insert

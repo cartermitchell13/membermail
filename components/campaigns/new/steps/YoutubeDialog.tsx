@@ -1,6 +1,7 @@
 "use client";
 
 import { useCampaignComposer } from "../CampaignComposerProvider";
+import { Button } from "@/components/ui/button";
 
 export default function YoutubeDialog() {
     const { showYoutubeInput, setShowYoutubeInput, youtubeUrl, setYoutubeUrl, ytRef, confirmYoutube } = useCampaignComposer();
@@ -25,8 +26,8 @@ export default function YoutubeDialog() {
                         }}
                     />
                     <div className="flex justify-end gap-2">
-                        <button className="px-3 py-1.5 text-sm rounded border border-white/20" onClick={() => setShowYoutubeInput(false)}>Cancel</button>
-                        <button className="px-3 py-1.5 text-sm rounded bg-[#FA4616] hover:bg-[#E23F14]" onClick={confirmYoutube}>Insert</button>
+                        <Button size="sm" variant="outline" onClick={() => setShowYoutubeInput(false)}>Cancel</Button>
+                        <Button size="sm" onClick={confirmYoutube}>Insert</Button>
                     </div>
                 </div>
             </div>

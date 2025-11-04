@@ -9,6 +9,8 @@ import { renderEmailFooterHtml } from "@/lib/email/footer";
 import { type EmailStyles, defaultEmailStyles } from "@/components/email-builder/ui/EmailStylePanel";
 import { getEventLabel } from "@/lib/automations/events";
 import type { AutomationTriggerEvent } from "@/lib/automations/events";
+import { useSubscriptionStatus } from "@/lib/subscriptions/useSubscriptionStatus";
+import { PaywallGate } from "@/components/subscription/PaywallGate";
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ companyId: string; id: string }> }) {
 	const { companyId, id } = use(params);
@@ -26,6 +28,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
         mailUsername: null,
     });
     const [loadingIdentity, setLoadingIdentity] = useState(true);
+    const [showPaywall, setShowPaywall] = useState(false);
+    const { status: subscriptionStatus, refresh: refreshSubscriptionStatus } = useSubscriptionStatus(companyId);
     const formatTrigger = (code: string | null | undefined) => {
         if (!code) return null;
         try {
@@ -62,11 +66,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
 
     useEffect(() => {
         (async () => {
-            const res = await fetch(`/api/sender-identity?companyId=${companyId}`);
+            try { await fetch(`/api/communities/resolve?companyId=${companyId}`, { cache: "no-store" }); } catch {}
+            const res = await fetch(`/api/sender-identity?companyId=${companyId}`, { cache: "no-store" });
             if (res.ok) {
                 const data = await res.json();
                 setSenderIdentity({
-                    setupComplete: Boolean(data.setupComplete && data.display_name && data.mail_username),
+                    setupComplete: Boolean(data.setupComplete),
                     displayName: data.display_name ?? null,
                     mailUsername: data.mail_username ?? null,
                 });
@@ -88,6 +93,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
 
 	async function send() {
 		setSending(true);
+		if (!subscriptionStatus.canSend) {
+			setShowPaywall(true);
+			setSending(false);
+			return;
+		}
 		const res = await fetch(`/api/campaigns/${id}/send`, { method: "POST" });
 		setSending(false);
 		if (res.ok) {
@@ -134,7 +144,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
                 </div>
             </div>
 
-            {!loadingIdentity && !senderIdentity.setupComplete && (
+            {!loadingIdentity && !(senderIdentity.setupComplete || (senderIdentity.displayName && senderIdentity.mailUsername)) && (
                 <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-yellow-100 flex items-center justify-between gap-4">
                     <div>
                         <p className="font-medium">Finish your sender setup</p>
@@ -207,10 +217,18 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ compa
 							)}
 						</div>
 					</div>
-				</div>
-			</div>
-		</div>
-	);
+                </div>
+            </div>
+            <PaywallGate
+                open={showPaywall}
+                onClose={() => setShowPaywall(false)}
+                companyId={companyId}
+                reason="send"
+                currentTier={subscriptionStatus.tier}
+                onRefresh={refreshSubscriptionStatus}
+            />
+        </div>
+    );
 }
 
 

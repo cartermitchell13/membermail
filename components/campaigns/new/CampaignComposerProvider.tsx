@@ -11,6 +11,8 @@ import { useCollaboration } from "@/lib/hooks/useCollaboration";
 import type { AwarenessUser } from "@/lib/collaboration/RealtimeProvider";
 import { type EmailStyles, defaultEmailStyles } from "@/components/email-builder/ui/EmailStylePanel";
 import { embedStylesInHTML, extractEmailStyles } from "@/lib/email/render-with-styles";
+import { isCourseAutomationEvent, type AutomationTriggerEvent } from "@/lib/automations/events";
+import type { CourseStepMetadata } from "@/lib/automations/course/types";
 
 type AudienceMode = "all_active" | "tiers" | "active_recent";
 
@@ -35,6 +37,16 @@ type SenderIdentityState = {
     setupComplete: boolean;
 };
 
+type SubscriptionStatusState = {
+    tier: "free" | "pro" | "enterprise";
+    canUseAI: boolean;
+    canSend: boolean;
+    isCompanyMember: boolean;
+    loading: boolean;
+    error: string | null;
+    authorizedUsersCount: number | null;
+};
+
 export type AutomationBlueprintPrefill = {
     sequenceId: string;
     title: string;
@@ -54,6 +66,11 @@ export type CampaignComposerContextValue = {
     // User
     user: UserInfo;
     loadingUser: boolean;
+    subscriptionStatus: SubscriptionStatusState;
+    refreshSubscriptionStatus: () => Promise<void>;
+    requireSubscriptionFeature: (feature: "ai" | "send") => boolean;
+    paywallReason: "ai" | "send" | null;
+    setPaywallReason: (reason: "ai" | "send" | null) => void;
 
     // Steps
     steps: { key: string; label: string }[];
@@ -80,6 +97,10 @@ export type CampaignComposerContextValue = {
     setAutomationStatus: (status: "draft" | "active" | "paused" | "archived") => void;
     automationSequenceId: number | null;
     setAutomationSequenceId: (value: number | null) => void;
+    automationEditor: boolean;
+    automationReturnTo: string | null;
+    automationTriggerMetadata: CourseStepMetadata | null;
+    setAutomationTriggerMetadata: React.Dispatch<React.SetStateAction<CourseStepMetadata | null>>;
 
     // Draft & Sync
     draftStatus: DraftStatus;
@@ -229,6 +250,13 @@ export function CampaignComposerProvider({
     const router = useRouter();
     const searchParams = useSearchParams();
     const editor = useCampaignEditor();
+    const automationEditor = useMemo(() => {
+        const flag = searchParams.get("automationEditor");
+        if (flag && (flag === "1" || flag.toLowerCase() === "true")) {
+            return true;
+        }
+        return Boolean(searchParams.get("automationSequenceId") && searchParams.get("returnTo"));
+    }, [searchParams]);
     const [senderIdentity, setSenderIdentity] = useState<SenderIdentityState>({
         displayName: null,
         mailUsername: null,
@@ -238,32 +266,100 @@ export function CampaignComposerProvider({
 
     // Steps
     const steps = useMemo(
-        () => [
-            { key: "compose", label: "Compose" },
-            { key: "audience", label: "Audience" },
-            { key: "settings", label: "Settings" },
-            { key: "automation", label: "Automation" },
-            { key: "review", label: "Review" },
-        ],
-        []
+        () =>
+            automationEditor
+                ? [{ key: "compose", label: "Compose" }]
+                : [
+                      { key: "compose", label: "Compose" },
+                      { key: "audience", label: "Audience" },
+                      { key: "settings", label: "Settings" },
+                      { key: "automation", label: "Automation" },
+                      { key: "review", label: "Review" },
+                  ],
+        [automationEditor]
     );
     const [currentStep, setCurrentStep] = useState<number>(0);
 
     // User state
     const [user, setUser] = useState<UserInfo>(null);
     const [loadingUser, setLoadingUser] = useState(true);
+    const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusState>({
+        tier: "free",
+        canUseAI: false,
+        canSend: false,
+        isCompanyMember: false,
+        loading: true,
+        error: null,
+        authorizedUsersCount: null,
+    });
+    const [paywallReason, setPaywallReason] = useState<"ai" | "send" | null>(null);
+
+    const refreshSubscriptionStatus = useCallback(async () => {
+        setSubscriptionStatus((prev) => ({ ...prev, loading: true, error: null }));
+        try {
+            const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
+            const response = await fetch(`/api/subscription/status${query}`, { cache: "no-store" });
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok || !data) {
+                throw new Error(data?.error || "Failed to fetch subscription status");
+            }
+
+            setSubscriptionStatus({
+                tier: data.tier ?? "free",
+                canUseAI: Boolean(data.canUseAI),
+                canSend: Boolean(data.canSend),
+                isCompanyMember: Boolean(data.isCompanyMember),
+                loading: false,
+                error: null,
+                authorizedUsersCount:
+                    typeof data.authorizedUsersCount === "number" ? data.authorizedUsersCount : null,
+            });
+        } catch (error) {
+            console.error("[CampaignComposer] Unable to load subscription status", error);
+            setSubscriptionStatus((prev) => ({
+                ...prev,
+                loading: false,
+                error: "Unable to load subscription status",
+            }));
+        }
+    }, [companyId]);
+
+    useEffect(() => {
+        void refreshSubscriptionStatus();
+    }, [refreshSubscriptionStatus]);
+
+    // Keep paywall open until the user explicitly closes it
+    // or until onRefresh() in the PaywallGate succeeds and closes it.
+    // Do not auto-close on subscription state changes to avoid flicker.
+
+    const requireSubscriptionFeature = useCallback(
+        (feature: "ai" | "send") => {
+            const allowed = feature === "ai" ? subscriptionStatus.canUseAI : subscriptionStatus.canSend;
+            if (!allowed) {
+                setPaywallReason(feature);
+                return false;
+            }
+            return true;
+        },
+        [subscriptionStatus],
+    );
 
     // Compose state
     const refreshSenderIdentity = useCallback(async () => {
         try {
             setLoadingSenderIdentity(true);
-            const res = await fetch(`/api/sender-identity?companyId=${companyId}`);
+            // Ensure the community exists and is linked to the correct user (self-heal)
+            try {
+                await fetch(`/api/communities/resolve?companyId=${companyId}`, { cache: "no-store" });
+            } catch {}
+            const res = await fetch(`/api/sender-identity?companyId=${companyId}`, { cache: "no-store" });
             if (res.ok) {
                 const data = await res.json();
                 setSenderIdentity({
                     displayName: data.display_name ?? null,
                     mailUsername: data.mail_username ?? null,
-                    setupComplete: Boolean(data.setupComplete && data.display_name && data.mail_username),
+                    setupComplete: Boolean(data.setupComplete),
                 });
             }
         } finally {
@@ -271,8 +367,34 @@ export function CampaignComposerProvider({
         }
     }, [companyId]);
 
+    // Optimistic seed from localStorage to avoid false banners before API returns
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = localStorage.getItem(`mm:settings:${companyId}`);
+            if (!raw) return;
+            const saved = JSON.parse(raw) as Record<string, unknown>;
+            const displayName = typeof saved.displayName === "string" && saved.displayName.length > 0 ? saved.displayName : null;
+            const username = typeof saved.username === "string" && saved.username.length > 0 ? saved.username : null;
+            if (displayName && username) {
+                setSenderIdentity({ displayName, mailUsername: username, setupComplete: true });
+            }
+        } catch {}
+    }, [companyId]);
+
     useEffect(() => {
         void refreshSenderIdentity();
+    }, [refreshSenderIdentity]);
+
+    // Refresh sender identity when page becomes visible (e.g., returning from settings)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void refreshSenderIdentity();
+            }
+        };
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
     }, [refreshSenderIdentity]);
 
     const [subject, setSubjectState] = useState("");
@@ -286,6 +408,8 @@ export function CampaignComposerProvider({
     const [triggerDelayUnit, setTriggerDelayUnit] = useState<"minutes" | "hours" | "days">("minutes");
     const [automationStatus, setAutomationStatus] = useState<"draft" | "active" | "paused" | "archived">("draft");
     const [automationSequenceId, setAutomationSequenceId] = useState<number | null>(null);
+    const [automationTriggerMetadata, setAutomationTriggerMetadata] = useState<CourseStepMetadata | null>(null);
+    const [automationReturnTo, setAutomationReturnTo] = useState<string | null>(null);
 
     // Start flow / drafts modals
     const [showStartSourceModal, setShowStartSourceModal] = useState<boolean>(false);
@@ -294,6 +418,7 @@ export function CampaignComposerProvider({
     // Autosave gating
     const [userInteracted, setUserInteracted] = useState<boolean>(false);
     const prefillActiveRef = useRef<boolean>(false);
+    const automationPrefillAppliedRef = useRef<boolean>(false);
     const [showLeavePrompt, setShowLeavePrompt] = useState<boolean>(false);
     const pendingHrefRef = useRef<string | null>(null);
 
@@ -468,6 +593,43 @@ export function CampaignComposerProvider({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
+    useEffect(() => {
+        if (!automationEditor) return;
+        if (automationPrefillAppliedRef.current) return;
+
+        const seq = searchParams.get("automationSequenceId");
+        if (seq) {
+            const parsed = Number(seq);
+            if (!Number.isNaN(parsed)) {
+                setAutomationSequenceId(parsed);
+                setSendMode("automation");
+                setAutomationStatus("active");
+            }
+        }
+
+        const returnToParam = searchParams.get("returnTo");
+        if (returnToParam) {
+            setAutomationReturnTo(returnToParam);
+        }
+
+        const delayValueParam = searchParams.get("stepDelayValue");
+        if (delayValueParam !== null) {
+            const parsedDelay = Number.parseInt(delayValueParam, 10);
+            if (!Number.isNaN(parsedDelay)) {
+                setTriggerDelayValue(Math.max(0, parsedDelay));
+            }
+        }
+
+        const delayUnitParam = searchParams.get("stepDelayUnit");
+        if (delayUnitParam && ["minutes", "hours", "days"].includes(delayUnitParam)) {
+            setTriggerDelayUnit(delayUnitParam as "minutes" | "hours" | "days");
+        }
+
+        setShowStartSourceModal(false);
+        setShowDraftsModal(false);
+        automationPrefillAppliedRef.current = true;
+    }, [automationEditor, searchParams, setAutomationSequenceId, setAutomationStatus, setSendMode, setTriggerDelayUnit, setTriggerDelayValue]);
+
     // Effects: editor content prefill from draft or template
     useEffect(() => {
         if (!editor) return;
@@ -492,9 +654,47 @@ export function CampaignComposerProvider({
         }
     }, [editor, searchParams]);
 
+    useEffect(() => {
+        if (!automationEditor) return;
+        if (!automationSequenceId) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(`/api/automations/sequences/${automationSequenceId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (cancelled) return;
+                const eventCode = data?.sequence?.trigger_event;
+                if (typeof eventCode === "string" && eventCode.length > 0) {
+                    setTriggerEvent(eventCode);
+                }
+            } catch (err) {
+                console.error("Failed to load automation sequence", err);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [automationEditor, automationSequenceId]);
+
+    useEffect(() => {
+        if (!triggerEvent) {
+            setAutomationTriggerMetadata(null);
+            return;
+        }
+        if (!isCourseAutomationEvent(triggerEvent as AutomationTriggerEvent)) {
+            setAutomationTriggerMetadata(null);
+        }
+    }, [triggerEvent]);
+
     // Start source modal logic and deep-link handlers
     useEffect(() => {
         if (typeof window === "undefined") return;
+        if (automationEditor) {
+            setShowStartSourceModal(false);
+            setShowDraftsModal(false);
+            return;
+        }
         const source = searchParams.get("source");
         const directDraftId = searchParams.get("draftId");
         const hasSessionPrefill = Boolean(sessionStorage.getItem("draft_email_content"));
@@ -522,7 +722,7 @@ export function CampaignComposerProvider({
         }
         setShowStartSourceModal(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams]);
+    }, [automationEditor, searchParams]);
 
     // Open a draft by id (helper for modal and deep-link)
     const openDraftById = useCallback(async (id: string) => {
@@ -776,6 +976,35 @@ export function CampaignComposerProvider({
             toast.error("Select an automation trigger event");
             return;
         }
+        let courseMetadata: CourseStepMetadata | null = null;
+        if (sendMode === "automation" && triggerEvent && isCourseAutomationEvent(triggerEvent as AutomationTriggerEvent)) {
+            const meta = automationTriggerMetadata;
+            if (!meta || !meta.courseId) {
+                toast.error("Select a course for this trigger");
+                return;
+            }
+            const eventCode = triggerEvent as AutomationTriggerEvent;
+            const requiresLesson =
+                eventCode === "course_lesson_started" ||
+                eventCode === "course_lesson_completed" ||
+                eventCode === "course_lesson_not_started_after_x_days";
+            const requiresChapter = requiresLesson || eventCode === "course_chapter_completed";
+            if (requiresChapter && !meta.chapterId) {
+                toast.error("Select a chapter for this course trigger");
+                return;
+            }
+            if (requiresLesson && !meta.lessonId) {
+                toast.error("Select a lesson for this course trigger");
+                return;
+            }
+            if (eventCode === "course_lesson_not_started_after_x_days") {
+                if (!meta.waitDays || meta.waitDays <= 0) {
+                    toast.error("Set the number of days before triggering");
+                    return;
+                }
+            }
+            courseMetadata = { ...meta, triggerKind: eventCode };
+        }
         try {
             const resolveRes = await fetch(`/api/communities/resolve?companyId=${companyId}`);
             const { id: community_id } = resolveRes.ok ? await resolveRes.json() : { id: 1 };
@@ -808,6 +1037,7 @@ export function CampaignComposerProvider({
                     quiet_hours_start: 9,
                     quiet_hours_end: 20,
                     automation_sequence_id: sendMode === "automation" ? automationSequenceId : null,
+                    automation_trigger_metadata: courseMetadata,
                 }),
             });
             if (res.ok) {
@@ -827,6 +1057,7 @@ export function CampaignComposerProvider({
                                 campaignId: data.campaign.id,
                                 delayValue: normalizedDelayValue,
                                 delayUnit: triggerDelayUnit,
+                                metadata: courseMetadata,
                             }),
                         });
                     } catch (stepError) {
@@ -834,7 +1065,11 @@ export function CampaignComposerProvider({
                     }
                 }
                 toast.success("Campaign created successfully!");
-                router.push(`/dashboard/${companyId}/campaigns/${data.campaign.id}`);
+                if (automationEditor && automationReturnTo) {
+                    router.push(automationReturnTo);
+                } else {
+                    router.push(`/dashboard/${companyId}/campaigns/${data.campaign.id}`);
+                }
             } else {
                 toast.error("Failed to create campaign");
             }
@@ -858,6 +1093,9 @@ export function CampaignComposerProvider({
         automationSequenceId,
         quietHoursEnabled,
         draftId,
+        automationTriggerMetadata,
+        automationEditor,
+        automationReturnTo,
     ]);
 
     const saveAsTemplate = useCallback(async () => {
@@ -1078,6 +1316,7 @@ export function CampaignComposerProvider({
     const sendAiMessage = useCallback(
         async (prompt: string, context?: { selectedText: string; mode: AIMode }) => {
             if (!editor) return;
+            if (!requireSubscriptionFeature("ai")) return;
 
             // Store current selection position for edit mode
             const selectionRange = context?.mode === "edit" 
@@ -1119,7 +1358,7 @@ export function CampaignComposerProvider({
                 const res = await fetch("/api/ai/newsletter", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(requestBody),
+                    body: JSON.stringify({ ...requestBody, companyId }),
                 });
 
                 if (!res.ok) {
@@ -1249,6 +1488,11 @@ export function CampaignComposerProvider({
             editor: (editor as any) ?? null,
             user,
             loadingUser,
+            subscriptionStatus,
+            refreshSubscriptionStatus,
+            requireSubscriptionFeature,
+            paywallReason,
+            setPaywallReason,
             steps,
             currentStep,
             setCurrentStep,
@@ -1271,6 +1515,10 @@ export function CampaignComposerProvider({
             setAutomationStatus,
             automationSequenceId,
             setAutomationSequenceId,
+            automationEditor,
+            automationReturnTo,
+            automationTriggerMetadata,
+            setAutomationTriggerMetadata,
             draftStatus,
             lastSaved,
             hasUnsavedChanges,
@@ -1311,6 +1559,8 @@ export function CampaignComposerProvider({
             applyPrefillHtml,
             showAiSidebar,
             setShowAiSidebar,
+            automationTriggerMetadata,
+            setAutomationTriggerMetadata,
             aiMessages,
             aiSelectedText,
             setAiSelectedText,
@@ -1387,6 +1637,11 @@ export function CampaignComposerProvider({
             editor,
             user,
             loadingUser,
+            subscriptionStatus,
+            refreshSubscriptionStatus,
+            requireSubscriptionFeature,
+            paywallReason,
+            setPaywallReason,
             steps,
             currentStep,
             subject,
@@ -1406,6 +1661,8 @@ export function CampaignComposerProvider({
             automationSequenceId,
             setAutomationStatus,
             setAutomationSequenceId,
+            automationEditor,
+            automationReturnTo,
             draftStatus,
             lastSaved,
             hasUnsavedChanges,
@@ -1492,7 +1749,3 @@ export function useCampaignComposer() {
     if (!ctx) throw new Error("useCampaignComposer must be used within CampaignComposerProvider");
     return ctx;
 }
-
-
-
-

@@ -6,7 +6,16 @@ import { useCampaignComposer } from "./CampaignComposerProvider";
 
 export default function TopStepperBar() {
     // Include setShowPreview so we can open the Preview modal from this top bar
-    const { steps, currentStep, setCurrentStep, create, draftStatus, hasUnsavedChanges, setShowPreview } = useCampaignComposer();
+    const {
+        steps,
+        currentStep,
+        setCurrentStep,
+        create,
+        draftStatus,
+        hasUnsavedChanges,
+        setShowPreview,
+        automationEditor,
+    } = useCampaignComposer();
     const saving = false; // saving was local in original; create() handles toasts; button disabled logic can be extended later
 
     // Determine circle background color based on save status
@@ -29,6 +38,35 @@ export default function TopStepperBar() {
     };
 
     const isSaving = draftStatus === 'saving';
+
+    if (automationEditor) {
+        return (
+            <div className="border-b border-white/10 bg-black/40 backdrop-blur-sm shrink-0">
+                <div className="flex items-center justify-between px-6 py-3">
+                    <div className="flex items-center gap-2 min-w-[120px]">
+                        <div className="relative flex items-center justify-center">
+                            <div
+                                className={`w-3 h-3 rounded-full transition-colors duration-300 shadow-md ${isSaving ? 'animate-pulse' : ''}`}
+                                style={{
+                                    ...getCircleStyle(),
+                                    boxShadow: '0 0 0 2px rgba(255,255,255,0.1)',
+                                }}
+                                title={`Draft status: ${draftStatus || 'idle'} - ${hasUnsavedChanges ? 'unsaved' : 'saved'}`}
+                            />
+                            {draftStatus === 'saved' && !hasUnsavedChanges && (
+                                <div className="absolute inset-0 h-3 w-3 rounded-full opacity-50 animate-ping" style={{ backgroundColor: '#22c55e' }} />
+                            )}
+                        </div>
+                        <span className="text-xs font-medium text-white/80">{getStatusLabel()}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button variant="secondary" onClick={() => setShowPreview(true)}>Preview</Button>
+                        <Button onClick={create} disabled={saving}>{saving ? "Saving…" : "Save email"}</Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="border-b border-white/10 bg-black/40 backdrop-blur-sm shrink-0">

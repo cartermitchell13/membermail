@@ -22,14 +22,22 @@ const AICompose = Extension.create({
 					(async () => {
 						const id = toast.loading("Generating with AI…");
 						try {
+                            // Best-effort extraction of companyId from URL for server-side gating
+                            let companyId: string | null = null;
+                            try {
+                                const parts = window.location.pathname.split("/");
+                                const idx = parts.indexOf("dashboard");
+                                if (idx >= 0 && parts[idx + 1]) companyId = parts[idx + 1];
+                            } catch {}
                             const res = await fetch("/api/ai/newsletter", {
-								method: "POST",
-								headers: { "Content-Type": "application/json" },
-								body: JSON.stringify({
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
                                     prompt: options.prompt + "\n\nConstraints: Use real list nodes for bullets/numbers. Add horizontal rules between sections. Keep paragraphs short. Use 2- or 3-column layouts when presenting side-by-side content.\n\nPersonalization: You can use these variables that will be replaced with actual member data when emails are sent:\n- {{name}} for the member's full name\n- {{email}} for the member's email address\n- {{username}} for their Whop username\n- {{company_name}} for the company/experience name\nUse these variables naturally in greetings, signatures, or anywhere personalization makes sense (e.g., 'Hi {{name}},' or 'Welcome to {{company_name}}').",
 									mode: options.mode ?? "replace",
-								}),
-							});
+                                    companyId,
+                                }),
+                            });
 							if (!res.ok) {
 								let msg = "AI request failed";
 								try { msg = (await res.text()) || msg; } catch {}

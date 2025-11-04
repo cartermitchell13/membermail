@@ -8,6 +8,7 @@ import {
     formatSenderAddress,
     isSenderIdentityComplete,
 } from "@/lib/email/sender-identity";
+import { getSubscriptionAccess } from "@/lib/subscriptions/access";
 
 function appendBeforeBodyClose(html: string, snippet: string): string {
     if (!snippet) return html;
@@ -55,6 +56,20 @@ export async function POST(req: NextRequest) {
                 status: 400,
                 headers: { "Content-Type": "application/json" },
             });
+        }
+
+        const access = await getSubscriptionAccess({ companyId });
+        if (!access.canSend) {
+            return new Response(
+                JSON.stringify({
+                    error: "Sending test emails requires a Pro or Enterprise subscription",
+                    tier: access.tier,
+                }),
+                {
+                    status: 402,
+                    headers: { "Content-Type": "application/json" },
+                },
+            );
         }
 
         // Validate email format

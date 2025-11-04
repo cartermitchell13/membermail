@@ -5,6 +5,7 @@ import { Mail, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCampaignComposer } from "@/components/campaigns/new/CampaignComposerProvider";
 import { embedStylesInHTML } from "@/lib/email/render-with-styles";
+import { Button } from "@/components/ui/button";
 
 /**
  * Dialog for sending a test email with the current campaign content
@@ -126,12 +127,13 @@ export default function SendTestEmailDialog({
                             <p className="text-sm text-white/50">Preview your campaign in your inbox</p>
                         </div>
                     </div>
-                    <button
+                    <Button
                         onClick={onClose}
-                        className="text-white/50 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
+                        variant="ghost"
+                        size="sm"
                     >
                         <X className="w-5 h-5" />
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Content */}
@@ -176,17 +178,17 @@ export default function SendTestEmailDialog({
 
                 {/* Footer */}
                 <div className="flex items-center justify-end gap-3 p-6 border-t border-white/10">
-                    <button
+                    <Button
                         onClick={onClose}
                         disabled={sending}
-                        className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+                        variant="ghost"
                     >
                         Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={handleSend}
                         disabled={sending || !email.trim() || setupBlocked}
-                        className="px-4 py-2 text-sm font-medium bg-[#FA4616] hover:bg-[#FA4616]/90 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        className="flex items-center gap-2"
                     >
                         {sending ? (
                             <>
@@ -199,7 +201,7 @@ export default function SendTestEmailDialog({
                                 Send Test Email
                             </>
                         )}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCampaignComposer } from "../CampaignComposerProvider";
+import { Button } from "@/components/ui/button";
 
 export default function ImageDialog() {
     const {
@@ -53,7 +54,7 @@ export default function ImageDialog() {
                     {imageUrlInput ? (
                         <div className="mt-4 flex gap-2">
                             <input value={imageUrlInput} onChange={(e) => setImageUrlInput(e.target.value)} placeholder="https://…" className="flex-1 bg-black/40 border border-white/10 rounded px-3 py-2 text-sm" />
-                            <button className="px-3 py-2 text-sm rounded bg-[#FA4616] hover:bg-[#E23F14]" onClick={insertImageFromUrl}>Insert</button>
+                            <Button size="sm" onClick={insertImageFromUrl}>Insert</Button>
                         </div>
                     ) : null}
                     {uploadingImage ? <div className="mt-4 text-white/60 text-sm">Uploading…</div> : null}

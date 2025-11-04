@@ -7,6 +7,7 @@ import {
   formatSenderAddress,
   isSenderIdentityComplete,
 } from "@/lib/email/sender-identity";
+import { getSubscriptionAccess } from "@/lib/subscriptions/access";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 	const { id: paramId } = await params;
@@ -16,6 +17,38 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 	if (!campaign) return new Response("Not found", { status: 404 });
     if (campaign.send_mode === "automation") {
         return new Response("Automation campaigns are delivered automatically", { status: 400 });
+    }
+
+    const { data: community } = await supabase
+        .from("communities")
+        .select("name, footer_text, reply_to_email, user_id, whop_community_id")
+        .eq("id", campaign.community_id)
+        .single();
+
+    if (!community) {
+        return new Response("Community not found", { status: 404 });
+    }
+
+    const access = await getSubscriptionAccess({ companyId: community.whop_community_id });
+    if (!access.canSend) {
+        return Response.json(
+            {
+                success: false,
+                error: "Sending campaigns requires a Pro or Enterprise subscription",
+                tier: access.tier,
+            },
+            { status: 402 },
+        );
+    }
+
+    if (community.whop_community_id && !access.isCompanyMember) {
+        return Response.json(
+            {
+                success: false,
+                error: "You do not have permission to send for this company",
+            },
+            { status: 403 },
+        );
     }
 
 	// Fetch recipients: all members of the campaign's community who are active
@@ -37,17 +70,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 	if (!members || members.length === 0) {
 		return new Response("No recipients", { status: 400 });
 	}
-
-    // load community branding/footer
-    const { data: community } = await supabase
-        .from("communities")
-        .select("name, footer_text, reply_to_email, user_id")
-        .eq("id", campaign.community_id)
-        .single();
-
-    if (!community) {
-        return new Response("Community not found", { status: 404 });
-    }
 
     const identity = await fetchSenderIdentityByUserId(supabase, community.user_id);
     if (!isSenderIdentityComplete(identity)) {

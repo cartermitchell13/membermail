@@ -57,6 +57,24 @@ export default function SettingsPage({ params }: { params: Promise<{ companyId: 
     const [savingEmailSettings, setSavingEmailSettings] = useState(false);
     const [stats, setStats] = useState<{ member_count?: number; last_sync_at?: string | null }>({});
 
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		try {
+			const raw = localStorage.getItem(`mm:settings:${companyId}`);
+			if (!raw) return;
+			const saved = JSON.parse(raw) as Record<string, unknown>;
+			if (typeof saved.displayName === "string") setDisplayName(saved.displayName);
+			if (typeof saved.username === "string") {
+				setUsername(saved.username);
+				setUsernameLocked(true);
+				setUsernameAvailability("available");
+			}
+			if (typeof saved.fromName === "string") setFromName(saved.fromName);
+			if (typeof saved.replyTo === "string") setReplyTo(saved.replyTo);
+			if (typeof saved.footer === "string") setFooter(saved.footer);
+		} catch {}
+	}, [companyId]);
+
     useEffect(() => {
         (async () => {
             const res = await fetch(`/api/communities/resolve?companyId=${companyId}`);
@@ -80,18 +98,30 @@ export default function SettingsPage({ params }: { params: Promise<{ companyId: 
                 setStats({ member_count: data.member_count, last_sync_at: data.last_sync_at });
             }
 
-            if (identityRes.ok) {
-                const identity = await identityRes.json();
-                setDisplayName(identity.display_name ?? "");
-                if (identity.mail_username) {
-                    setUsername(identity.mail_username);
-                    setUsernameLocked(true);
-                    setUsernameAvailability("available");
-                } else {
-                    setUsername("");
-                    setUsernameLocked(false);
-                }
-            }
+			if (identityRes.ok) {
+				const identity = await identityRes.json();
+				const hasDisplay = typeof identity.display_name === "string" && identity.display_name.length > 0;
+				const hasUsername = typeof identity.mail_username === "string" && identity.mail_username.length > 0;
+
+				if (hasDisplay) {
+					setDisplayName(identity.display_name);
+				}
+
+				if (hasUsername) {
+					setUsername(identity.mail_username);
+					setUsernameLocked(true);
+					setUsernameAvailability("available");
+				}
+
+				try {
+					const key = `mm:settings:${companyId}`;
+					const prev = JSON.parse(localStorage.getItem(key) || "{}");
+					const next = { ...prev } as Record<string, unknown>;
+					if (hasDisplay) next.displayName = identity.display_name;
+					if (hasUsername) next.username = identity.mail_username;
+					localStorage.setItem(key, JSON.stringify(next));
+				} catch {}
+			}
 
             setLoadingIdentity(false);
         })();
@@ -194,6 +224,20 @@ export default function SettingsPage({ params }: { params: Promise<{ companyId: 
         }
 
         setFromName(displayName.trim());
+		try {
+			const key = `mm:settings:${companyId}`;
+			const prev = JSON.parse(localStorage.getItem(key) || "{}");
+			const finalUsername = usernameLocked ? username : normalized;
+			localStorage.setItem(
+				key,
+				JSON.stringify({
+					...prev,
+					displayName: displayName.trim(),
+					username: finalUsername,
+					fromName: displayName.trim(),
+				}),
+			);
+		} catch {}
         toast.success("Sender identity saved");
         setSavingIdentity(false);
     }
@@ -206,6 +250,14 @@ export default function SettingsPage({ params }: { params: Promise<{ companyId: 
             body: JSON.stringify({ from_name: fromName, reply_to_email: replyTo, footer_text: footer }),
         });
         setSavingEmailSettings(false);
+		try {
+			const key = `mm:settings:${companyId}`;
+			const prev = JSON.parse(localStorage.getItem(key) || "{}");
+			localStorage.setItem(
+				key,
+				JSON.stringify({ ...prev, fromName, replyTo, footer }),
+			);
+		} catch {}
         toast.success("Email settings saved");
     }
 

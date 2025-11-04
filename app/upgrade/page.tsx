@@ -1,6 +1,7 @@
 import { PricingCard } from "@/components/upgrade/PricingCard";
 import AppSidebar from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { getDefaultPricingTiers } from "@/lib/subscriptions/pricing";
 
 /**
  * Upgrade page displaying tiered subscription options
@@ -22,71 +23,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 export default function UpgradePage() {
 	// Define your pricing tiers
 	// Replace these plan IDs with your actual Whop plan IDs from your dashboard
-	const pricingTiers = [
-		{
-			name: "Free",
-			price: "$0",
-			period: "forever",
-			description: "Perfect for getting started",
-			features: [
-				"Up to 100 email sends per month",
-				"Basic email templates",
-				"Community support",
-				"1 company workspace",
-				"Email analytics dashboard",
-			],
-			// Free tier - no plan ID needed, or use a free plan ID if you create one
-			planId: process.env.NEXT_PUBLIC_FREE_PLAN_ID || "plan_free",
-			// Replace with your actual access pass ID from Whop dashboard
-			accessPassId:
-				process.env.NEXT_PUBLIC_FREE_ACCESS_PASS_ID || "prod_free",
-			buttonText: "Get Started Free",
-		},
-		{
-			name: "Pro",
-			price: "$29",
-			period: "month",
-			description: "Best for growing businesses",
-			features: [
-				"Up to 5,000 email sends per month",
-				"Advanced email templates",
-				"A/B testing",
-				"Priority support",
-				"Up to 5 company workspaces",
-				"Custom branding",
-				"Advanced analytics",
-			],
-			// Replace with your actual plan ID from Whop dashboard
-			planId: process.env.NEXT_PUBLIC_PRO_PLAN_ID || "plan_pro_monthly",
-			// Replace with your actual access pass ID from Whop dashboard
-			accessPassId: process.env.NEXT_PUBLIC_PRO_ACCESS_PASS_ID || "prod_pro",
-			popular: true,
-			buttonText: "Go Pro",
-		},
-		{
-			name: "Enterprise",
-			price: "$99",
-			period: "month",
-			description: "For large-scale operations",
-			features: [
-				"Unlimited email sends",
-				"All Pro features",
-				"Custom integrations",
-				"Dedicated account manager",
-				"Unlimited company workspaces",
-				"White-label options",
-				"SLA guarantee",
-				"Phone support",
-			],
-			// Replace with your actual plan ID from Whop dashboard
-			planId:
-				process.env.NEXT_PUBLIC_ENTERPRISE_PLAN_ID || "plan_enterprise_monthly",
-			// Replace with your actual access pass ID from Whop dashboard
-			accessPassId:
-				process.env.NEXT_PUBLIC_ENTERPRISE_ACCESS_PASS_ID || "prod_enterprise",
-			buttonText: "Contact Sales",
-		},
-	];
+	const pricingTiers = getDefaultPricingTiers();
 
 	return (
 		<SidebarProvider>
@@ -172,14 +109,12 @@ export default function UpgradePage() {
 								<li>Copy the plan IDs and access pass IDs from the dashboard</li>
 								<li>
 									Add them to your <code className="bg-white/10 px-2 py-0.5 rounded text-xs">.env.local</code> file:
-									<pre className="bg-black/40 p-3 rounded-lg mt-2 text-xs overflow-x-auto border border-white/10">
-										{`NEXT_PUBLIC_FREE_PLAN_ID="plan_xxx"
-NEXT_PUBLIC_FREE_ACCESS_PASS_ID="prod_xxx"
-NEXT_PUBLIC_PRO_PLAN_ID="plan_xxx"
+								<pre className="bg-black/40 p-3 rounded-lg mt-2 text-xs overflow-x-auto border border-white/10">
+									{`NEXT_PUBLIC_PRO_PLAN_ID="plan_xxx"
 NEXT_PUBLIC_PRO_ACCESS_PASS_ID="prod_xxx"
 NEXT_PUBLIC_ENTERPRISE_PLAN_ID="plan_xxx"
 NEXT_PUBLIC_ENTERPRISE_ACCESS_PASS_ID="prod_xxx"`}
-									</pre>
+								</pre>
 								</li>
 							</ol>
 						</div>

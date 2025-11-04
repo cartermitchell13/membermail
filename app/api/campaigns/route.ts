@@ -72,6 +72,11 @@ export async function POST(req: NextRequest) {
             return new Response("automation_sequence_id must be numeric", { status: 400 });
         }
 
+        const automationTriggerMetadata =
+            sendMode === "automation" && body.automation_trigger_metadata && typeof body.automation_trigger_metadata === "object"
+                ? body.automation_trigger_metadata
+                : null;
+
         const allowedAutomationStatuses = new Set(["draft", "active", "paused", "archived"]);
         const automationStatusRaw =
             sendMode === "automation" && body.automation_status !== undefined
@@ -108,6 +113,7 @@ export async function POST(req: NextRequest) {
             quiet_hours_enabled: quietHoursEnabled,
             quiet_hours_start: quietHoursStart,
             quiet_hours_end: quietHoursEnd,
+            automation_trigger_metadata: automationTriggerMetadata,
         };
 
         const { data, error } = await supabase

@@ -182,13 +182,15 @@ export function CTACustomizer({
 				</div>
 
 				{/* Customization toggle button */}
-				<button
+				<Button
 					onClick={() => setShowCustomizer(!showCustomizer)}
-					className="absolute top-2 right-2 p-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-md transition-colors"
+					variant="secondary"
+					size="sm"
+					className="absolute top-2 right-2"
 					title="Customize button"
 				>
-					<Settings className="w-4 h-4 text-gray-300" />
-				</button>
+					<Settings className="w-4 h-4" />
+				</Button>
 
 				{/* Customization panel */}
 				{showCustomizer && (
@@ -198,12 +200,13 @@ export function CTACustomizer({
 								<Palette className="w-4 h-4" />
 								Customize Button
 							</h3>
-							<button
+							<Button
 								onClick={() => setShowCustomizer(false)}
-								className="text-xs text-gray-400 hover:text-gray-200"
+								variant="ghost"
+								size="xs"
 							>
 								Close
-							</button>
+							</Button>
 						</div>
 
 						{/* URL Input */}

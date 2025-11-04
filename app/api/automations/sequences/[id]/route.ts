@@ -14,6 +14,9 @@ function sequenceSelectColumns() {
         trigger_label,
         status,
         timezone,
+        quiet_hours_enabled,
+        quiet_hours_start,
+        quiet_hours_end,
         metadata,
         created_at,
         updated_at,
@@ -79,6 +82,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
         if (body.timezone && typeof body.timezone === "string") {
             updatePayload.timezone = body.timezone;
+        }
+        if (body.quiet_hours_enabled !== undefined) {
+            updatePayload.quiet_hours_enabled = Boolean(body.quiet_hours_enabled);
+        }
+        if (body.quiet_hours_start !== undefined) {
+            const parsedStart = Number.parseInt(String(body.quiet_hours_start), 10);
+            if (Number.isNaN(parsedStart)) {
+                return new Response("quiet_hours_start must be an integer", { status: 400 });
+            }
+            updatePayload.quiet_hours_start = Math.min(23, Math.max(0, parsedStart));
+        }
+        if (body.quiet_hours_end !== undefined) {
+            const parsedEnd = Number.parseInt(String(body.quiet_hours_end), 10);
+            if (Number.isNaN(parsedEnd)) {
+                return new Response("quiet_hours_end must be an integer", { status: 400 });
+            }
+            updatePayload.quiet_hours_end = Math.min(23, Math.max(0, parsedEnd));
         }
         if (body.triggerEvent) {
             const normalized = normalizeWhopEvent(String(body.triggerEvent));

@@ -5,22 +5,26 @@ import { useCampaignComposer } from "../CampaignComposerProvider";
 import { useState, useRef, useEffect } from "react";
 import { VARIABLE_CONFIG, type VariableType } from "@/components/email-builder/extensions/Variable";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/ui/cn";
 
 function ToolbarButton({ onClick, active, disabled, children, title }: { onClick: () => void; active?: boolean; disabled?: boolean; children: React.ReactNode; title: string; }) {
     return (
-        <button
+        <Button
             type="button"
             onClick={onClick}
             disabled={disabled}
             title={title}
-            className={`
-                p-2 rounded transition-colors
-                ${active ? "bg-[#FA4616] text-white" : "text-white/70 hover:text-white hover:bg-white/10"}
-                ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-            `}
+            variant={active ? "default" : "ghost"}
+            size="sm"
+            className={cn(
+                "p-2",
+                active && "bg-[#FA4616] text-white",
+                !active && "text-white/70 hover:text-white"
+            )}
         >
             {children}
-        </button>
+        </Button>
     );
 }
 
@@ -45,20 +49,20 @@ function SubjectPreviewDropdown() {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button
+            <Button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 title="Email Subject & Preview"
-                className={`flex items-center gap-1.5 px-2.5 py-2 rounded transition-colors ${
-                    subject ? 'bg-[#FA4616]/10 text-[#FA4616]' : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
+                variant={subject ? "secondary" : "ghost"}
+                size="sm"
+                className="flex items-center gap-1.5"
             >
                 <Mail className="w-4 h-4" />
                 <span className="text-xs font-medium">
                     {subject || 'Subject'}
                 </span>
                 <ChevronDown className="w-3 h-3" />
-            </button>
+            </Button>
 
             {isOpen && (
                 <div className="absolute top-full left-0 mt-1 w-96 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl z-50 p-4 space-y-3">
@@ -114,17 +118,19 @@ function VariableDropdown({ editor }: { editor: any }) {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button
+            <Button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 title="Insert Variable"
-                className="flex items-center gap-1 px-2 py-2 rounded transition-colors text-white/70 hover:text-white hover:bg-white/10"
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-1"
             >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
                 <ChevronDown className="w-3 h-3" />
-            </button>
+            </Button>
 
             {isOpen && (
                 <div className="absolute top-full left-0 mt-1 w-72 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
@@ -185,11 +191,13 @@ export default function EditorToolbar() {
         setAiSelectedText, 
         setShowTestEmailDialog,
         senderIdentity,
+        subscriptionStatus,
+        requireSubscriptionFeature,
     } = useCampaignComposer();
     
     // Handle AI button click - capture selection if any
     const handleAiClick = () => {
-        if (!editor) return;
+        if (!requireSubscriptionFeature("ai") || !editor) return;
         const { from, to } = editor.state.selection;
         const selectedText = editor.state.doc.textBetween(from, to, " ");
         if (selectedText) {
@@ -204,7 +212,7 @@ export default function EditorToolbar() {
             <div className="flex items-center gap-1 p-2 flex-wrap">
                 <SubjectPreviewDropdown />
                 <div className="w-px h-6 bg-white/10 mx-1" />
-                <ToolbarButton onClick={handleAiClick} title="Ask AI (Cmd/Ctrl+K)">
+                <ToolbarButton onClick={handleAiClick} title={subscriptionStatus.canUseAI ? "Ask AI (Cmd/Ctrl+K)" : "Upgrade to unlock AI copilots"}>
                     <Sparkles className="w-4 h-4" />
                 </ToolbarButton>
                 <div className="w-px h-6 bg-white/10 mx-1" />
@@ -271,8 +279,18 @@ export default function EditorToolbar() {
                 </ToolbarButton>
                 <div className="w-px h-6 bg-white/10 mx-1" />
                 <ToolbarButton
-                    onClick={() => setShowTestEmailDialog(true)}
-                    title={senderIdentity.setupComplete ? "Send Test Email" : "Complete sender settings to send tests"}
+                    onClick={() => {
+                        if (!senderIdentity.setupComplete) return;
+                        if (!requireSubscriptionFeature("send")) return;
+                        setShowTestEmailDialog(true);
+                    }}
+                    title={
+                        senderIdentity.setupComplete
+                            ? subscriptionStatus.canSend
+                                ? "Send Test Email"
+                                : "Upgrade to send test emails"
+                            : "Complete sender settings to send tests"
+                    }
                     disabled={!senderIdentity.setupComplete}
                 >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

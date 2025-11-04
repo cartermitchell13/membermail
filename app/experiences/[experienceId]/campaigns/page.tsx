@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import { ButtonLink } from "@/components/ui/button-link";
+import { cn } from "@/lib/ui/cn";
 // Avoid importing client-only utilities in server components
 
 async function getCampaigns(baseUrl: string) {
@@ -7,6 +9,23 @@ async function getCampaigns(baseUrl: string) {
 	if (!res.ok) return [] as any[];
 	const data = await res.json();
 	return data.campaigns as any[];
+}
+
+function formatSentDate(dateString: string | null | undefined): string {
+	if (!dateString) return "-";
+	try {
+		const date = new Date(dateString);
+		return date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "numeric",
+			minute: "2-digit",
+			hour12: true,
+		});
+	} catch {
+		return "-";
+	}
 }
 
 export default async function CampaignsListPage() {
@@ -19,16 +38,13 @@ export default async function CampaignsListPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<h1 className="text-4xl font-semibold tracking-tight">Campaigns</h1>
-				<Link
+				<ButtonLink
 					href="./campaigns/new"
-					className={
-						"inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors " +
-						"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FA4616] disabled:pointer-events-none disabled:opacity-50 " +
-						"bg-[#FA4616] text-white hover:bg-[#E23F14] h-9 px-4"
-					}
+					variant="default"
+					size="md"
 				>
 					New campaign
-				</Link>
+				</ButtonLink>
 			</div>
 			
 			{campaigns.length === 0 ? (
@@ -43,19 +59,17 @@ export default async function CampaignsListPage() {
 						<p className="text-white/50 mb-8 text-base leading-relaxed">
 							Get started by creating your first email campaign. Reach your members with personalized messages, track engagement, and grow your community.
 						</p>
-						<Link
+						<ButtonLink
 							href="./campaigns/new"
-							className={
-								"inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-colors " +
-								"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FA4616] focus-visible:ring-offset-2 focus-visible:ring-offset-black " +
-								"bg-[#FA4616] text-white hover:bg-[#E23F14] h-11 px-8 shadow-lg shadow-[#FA4616]/20"
-							}
+							variant="default"
+							size="lg"
+							className="inline-flex items-center gap-2"
 						>
-							<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
 							</svg>
 							Create your first campaign
-						</Link>
+						</ButtonLink>
 					</div>
 				</div>
 			) : (
@@ -72,7 +86,7 @@ export default async function CampaignsListPage() {
 							<div key={c.id} className="grid grid-cols-[1fr_140px_140px_140px_100px] items-center px-4 py-3 hover:bg-white/[0.04]">
 								<div className="truncate">{c.subject}</div>
 								<div className="text-white/70">{c.status}</div>
-								<div className="text-white/70">{c.sent_at ?? "-"}</div>
+								<div className="text-white/70">{formatSentDate(c.sent_at)}</div>
 								<div className="text-white/70">{c.open_count} / {c.click_count}</div>
 								<div className="text-right">
 									<Link className="text-accent-9 underline" href={`./campaigns/${c.id}`}>Open</Link>

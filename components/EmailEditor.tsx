@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 type EmailEditorProps = {
 	content?: string;
@@ -299,8 +300,8 @@ export default function EmailEditor({ content = "", onChange }: EmailEditorProps
 									}}
 								/>
 								<div className="flex justify-end gap-2">
-									<button className="px-3 py-1.5 text-sm rounded border border-white/20" onClick={() => setShowYoutubeInput(false)}>Cancel</button>
-									<button className="px-3 py-1.5 text-sm rounded bg-[#FA4616] hover:bg-[#E23F14]" onClick={confirmYoutube}>Insert</button>
+									<Button size="sm" variant="outline" onClick={() => setShowYoutubeInput(false)}>Cancel</Button>
+									<Button size="sm" onClick={confirmYoutube}>Insert</Button>
 								</div>
 							</div>
 						</div>

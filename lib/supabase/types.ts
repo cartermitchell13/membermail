@@ -156,6 +156,9 @@ export type Database = {
           trigger_label: string | null
           status: string
           timezone: string
+          quiet_hours_enabled: boolean | null
+          quiet_hours_start: number | null
+          quiet_hours_end: number | null
           metadata: Json | null
           created_at: string | null
           updated_at: string | null
@@ -169,6 +172,9 @@ export type Database = {
           trigger_label?: string | null
           status?: string
           timezone: string
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_start?: number | null
+          quiet_hours_end?: number | null
           metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
@@ -182,6 +188,9 @@ export type Database = {
           trigger_label?: string | null
           status?: string
           timezone?: string
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_start?: number | null
+          quiet_hours_end?: number | null
           metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
@@ -204,6 +213,7 @@ export type Database = {
           position: number
           delay_value: number | null
           delay_unit: string | null
+          metadata: Json | null
           created_at: string | null
           updated_at: string | null
         }
@@ -214,6 +224,7 @@ export type Database = {
           position: number
           delay_value?: number | null
           delay_unit?: string | null
+          metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -224,6 +235,7 @@ export type Database = {
           position?: number
           delay_value?: number | null
           delay_unit?: string | null
+          metadata?: Json | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -240,6 +252,106 @@ export type Database = {
             columns: ["sequence_id"]
             isOneToOne: false
             referencedRelation: "automation_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_progress_states: {
+        Row: {
+          id: number
+          member_id: number
+          course_id: string
+          lesson_id: string
+          status: string
+          started_at: string | null
+          completed_at: string | null
+          last_interaction_at: string | null
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          member_id: number
+          course_id: string
+          lesson_id: string
+          status?: string
+          started_at?: string | null
+          completed_at?: string | null
+          last_interaction_at?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          member_id?: number
+          course_id?: string
+          lesson_id?: string
+          status?: string
+          started_at?: string | null
+          completed_at?: string | null
+          last_interaction_at?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_progress_states_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_trigger_watches: {
+        Row: {
+          id: number
+          member_id: number
+          course_id: string
+          chapter_id: string | null
+          lesson_id: string | null
+          trigger_kind: string
+          trigger_metadata: Json | null
+          deadline_at: string | null
+          satisfied_at: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          member_id: number
+          course_id: string
+          chapter_id?: string | null
+          lesson_id?: string | null
+          trigger_kind: string
+          trigger_metadata?: Json | null
+          deadline_at?: string | null
+          satisfied_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          member_id?: number
+          course_id?: string
+          chapter_id?: string | null
+          lesson_id?: string | null
+          trigger_kind?: string
+          trigger_metadata?: Json | null
+          deadline_at?: string | null
+          satisfied_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_trigger_watches_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
             referencedColumns: ["id"]
           },
         ]
@@ -314,6 +426,7 @@ export type Database = {
           quiet_hours_enabled: boolean | null
           quiet_hours_start: number | null
           quiet_hours_end: number | null
+          automation_trigger_metadata: Json | null
           updated_at: string | null
         }
         Insert: {
@@ -341,6 +454,7 @@ export type Database = {
           quiet_hours_enabled?: boolean | null
           quiet_hours_start?: number | null
           quiet_hours_end?: number | null
+          automation_trigger_metadata?: Json | null
           updated_at?: string | null
         }
         Update: {
@@ -368,6 +482,7 @@ export type Database = {
           quiet_hours_enabled?: boolean | null
           quiet_hours_start?: number | null
           quiet_hours_end?: number | null
+          automation_trigger_metadata?: Json | null
           updated_at?: string | null
         }
         Relationships: [

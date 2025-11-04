@@ -2,6 +2,7 @@
 
 import { useCampaignComposer } from "../CampaignComposerProvider";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export default function TemplatePicker() {
     const { showTemplatePicker, setShowTemplatePicker, templates, loadingTemplates, categoryFilter, setCategoryFilter, setPreviewTemplateHtml, applyPrefillHtml } = useCampaignComposer();
@@ -39,12 +40,23 @@ export default function TemplatePicker() {
                                             <div className="text-sm text-white/70">{t.category || "General"}</div>
                                             <div className="font-medium truncate">{t.name}</div>
                                             <div className="flex gap-2">
-                                                <button className="px-3 py-1 rounded bg-[#FA4616] text-white hover:bg-[#E23F14] text-sm" onClick={() => {
-                                                    applyPrefillHtml(String(t.html_content || ""));
-                                                    toast.success("Template applied");
-                                                    setShowTemplatePicker(false);
-                                                }}>Use</button>
-                                                <button className="px-3 py-1 rounded border border-white/20 text-white hover:bg-white/10 text-sm" onClick={() => setPreviewTemplateHtml(String(t.html_content || ""))}>Preview</button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        applyPrefillHtml(String(t.html_content || ""));
+                                                        toast.success("Template applied");
+                                                        setShowTemplatePicker(false);
+                                                    }}
+                                                >
+                                                    Use
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setPreviewTemplateHtml(String(t.html_content || ""))}
+                                                >
+                                                    Preview
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>

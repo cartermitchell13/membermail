@@ -92,18 +92,61 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      let sequenceTimezone: string | null = null;
+      const sequenceSettings = {
+        timezone: null as string | null,
+        quietHoursEnabled: null as boolean | null,
+        quietHoursStart: null as number | null,
+        quietHoursEnd: null as number | null,
+        status: null as string | null,
+      };
+
       if (job.sequence_id) {
         const { data: sequence } = await supabase
           .from("automation_sequences")
-          .select("timezone")
+          .select("timezone, status, quiet_hours_enabled, quiet_hours_start, quiet_hours_end")
           .eq("id", job.sequence_id)
           .single();
-        sequenceTimezone = sequence?.timezone ?? null;
+        if (sequence) {
+          sequenceSettings.timezone = sequence.timezone ?? null;
+          sequenceSettings.status = sequence.status ?? null;
+          sequenceSettings.quietHoursEnabled = sequence.quiet_hours_enabled ?? null;
+          sequenceSettings.quietHoursStart = sequence.quiet_hours_start ?? null;
+          sequenceSettings.quietHoursEnd = sequence.quiet_hours_end ?? null;
+        }
       }
 
-      if (campaign.quiet_hours_enabled) {
-        const tz = sequenceTimezone ?? "UTC";
+      if (job.sequence_id && sequenceSettings.status === "paused") {
+        await supabase
+          .from("automation_jobs")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("id", job.id);
+        result.skipped += 1;
+        continue;
+      }
+
+      const sequenceQuiet = sequenceSettings.quietHoursEnabled;
+      const quietConfig = {
+        enabled:
+          sequenceQuiet === null
+            ? Boolean(campaign.quiet_hours_enabled)
+            : Boolean(sequenceQuiet),
+        start:
+          sequenceQuiet === true && typeof sequenceSettings.quietHoursStart === "number"
+            ? sequenceSettings.quietHoursStart
+            : typeof campaign.quiet_hours_start === "number"
+              ? campaign.quiet_hours_start
+              : 9,
+        end:
+          sequenceQuiet === true && typeof sequenceSettings.quietHoursEnd === "number"
+            ? sequenceSettings.quietHoursEnd
+            : typeof campaign.quiet_hours_end === "number"
+              ? campaign.quiet_hours_end
+              : 20,
+      };
+
+      const tz = sequenceSettings.timezone ?? "UTC";
+
+      if (quietConfig.enabled) {
         const formatter = new Intl.DateTimeFormat("en-US", {
           timeZone: tz,
           hour: "numeric",
@@ -115,8 +158,8 @@ export async function POST(req: NextRequest) {
         const minutePart = parts.find((part) => part.type === "minute");
         const localHour = Number(hourPart?.value ?? "0");
         const localMinute = Number(minutePart?.value ?? "0");
-        const quietStart = typeof campaign.quiet_hours_start === "number" ? campaign.quiet_hours_start : 9;
-        const quietEnd = typeof campaign.quiet_hours_end === "number" ? campaign.quiet_hours_end : 20;
+        const quietStart = quietConfig.start;
+        const quietEnd = quietConfig.end;
 
         let minutesToAdd = 0;
         if (localHour < quietStart) {

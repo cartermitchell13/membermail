@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 
 type Member = {
     id: number;
@@ -109,8 +110,29 @@ export default function MembersPage({ params }: { params: Promise<{ experienceId
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <Input placeholder="Search by name/email" value={q} onChange={(e) => setQ(e.target.value)} />
-                <Input placeholder="Filter by status (active/cancelled/paused)" value={status} onChange={(e) => setStatus(e.target.value)} />
-                <Input placeholder="Filter by tier" value={tier} onChange={(e) => setTier(e.target.value)} />
+                <Select
+                    value={status}
+                    onChange={setStatus}
+                    placeholder="All statuses"
+                    options={[
+                        { value: "", label: "All statuses" },
+                        { value: "active", label: "Active" },
+                        { value: "cancelled", label: "Cancelled" },
+                        { value: "paused", label: "Paused" },
+                    ]}
+                />
+                <Select
+                    value={tier}
+                    onChange={setTier}
+                    placeholder="All tiers"
+                    options={[
+                        { value: "", label: "All tiers" },
+                        ...Object.keys(breakdown.tiers || {}).map((tierName) => ({
+                            value: tierName,
+                            label: tierName,
+                        })),
+                    ]}
+                />
                 <Button onClick={applyFilters}>Apply</Button>
             </div>
 

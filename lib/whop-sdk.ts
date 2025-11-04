@@ -52,3 +52,17 @@ export const whopSdk = new Proxy({} as ReturnType<typeof WhopServerSdk>, {
 		return sdk[prop as keyof typeof sdk];
 	},
 });
+
+export function getServerWhopSdk(options?: { onBehalfOfUserId?: string }) {
+	const appId = process.env.NEXT_PUBLIC_WHOP_APP_ID;
+	const apiKey = process.env.WHOP_API_KEY;
+	if (!appId || !apiKey || appId === "fallback" || apiKey === "fallback") {
+		return null;
+	}
+	return WhopServerSdk({
+		appId,
+		appApiKey: apiKey,
+		onBehalfOfUserId: options?.onBehalfOfUserId ?? process.env.NEXT_PUBLIC_WHOP_AGENT_USER_ID,
+		companyId: process.env.NEXT_PUBLIC_WHOP_COMPANY_ID,
+	});
+}

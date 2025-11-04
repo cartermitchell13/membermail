@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
                 trigger_label,
                 status,
                 timezone,
+                quiet_hours_enabled,
+                quiet_hours_start,
+                quiet_hours_end,
                 metadata,
                 created_at,
                 updated_at,
@@ -99,6 +102,9 @@ export async function POST(req: NextRequest) {
             trigger_label: getEventLabel(normalizedEvent),
             status: "draft",
             timezone: typeof timezone === "string" && timezone.length > 0 ? timezone : "UTC",
+            quiet_hours_enabled: null,
+            quiet_hours_start: null,
+            quiet_hours_end: null,
         };
 
         const { data, error } = await supabase

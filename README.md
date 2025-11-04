@@ -15,6 +15,14 @@ To run this project:
 3. Copy the environment variables from the `.env.development` into a `.env.local`. Ensure to use real values from the whop dashboard.
    - Add `APP_URL` pointing to your deployed URL. For local development, use a public tunnel (e.g., ngrok) because Whop webhooks must reach your server. Example: `APP_URL=https://your-id.ngrok.app`
    - OAuth scopes request `developer:manage_webhook` to allow the app to programmatically create webhooks during install.
+   - Provide plan + access pass IDs for paid tiers:
+     ```bash
+     NEXT_PUBLIC_PRO_PLAN_ID="plan_..."
+     NEXT_PUBLIC_PRO_ACCESS_PASS_ID="prod_..."
+     NEXT_PUBLIC_ENTERPRISE_PLAN_ID="plan_..."
+     NEXT_PUBLIC_ENTERPRISE_ACCESS_PASS_ID="prod_..."
+     ```
+     These power checkout and paywall flows (Pro = $29/mo with 7-day trial, Enterprise = $200/mo).
 
 4. Go to a whop created in the same org as the app you created. Navigate to the tools section and add your app.
 
@@ -38,6 +46,14 @@ a
 
 
 For more info, see our docs at https://dev.whop.com/introduction
+
+## Pricing & Access Controls
+
+- **Pro ($29/mo)** – includes a 7-day free trial, unlocks AI copilots (newsletter rewriting, image generation) and authorizes sending test emails + live campaigns.
+- **Enterprise ($200/mo)** – includes everything in Pro plus concierge onboarding and up to 5 authorized team members at no extra charge.
+- The in-app paywall surfaces inside the composer when users trigger AI features, send tests, or send campaigns. Purchases via Whop update access immediately after checkout.
+- Subscription state is resolved through `/api/subscription/status`, which also returns Enterprise seat counts. If you invite more than 5 team members, a non-blocking alert reminds you to free up seats.
+- To validate a new configuration locally, toggle the paywall by hitting the action (e.g., “Ask AI”). After upgrading, click “Refresh access” in the paywall overlay to re-fetch permissions.
 
 ## Testing & Development
 

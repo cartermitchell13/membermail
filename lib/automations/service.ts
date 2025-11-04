@@ -1,5 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AutomationTriggerEvent } from "./events";
+import { isCourseAutomationEvent } from "./events";
+import {
+  courseMetadataMatchesContext,
+  extractCourseTriggerContext,
+  recordCourseProgress,
+  type CourseTriggerContext,
+} from "./course/ingest";
+import type { CourseStepMetadata } from "./course/types";
+import { ensureCourseWatchesForMember } from "./course/watches";
 
 type DatabaseClient = SupabaseClient<any, "public", any>;
 
@@ -141,11 +150,36 @@ export async function handleAutomationTrigger({
     return { status: "ignored", reason: "Member not found", companyId, memberWhopId };
   }
 
+  const membershipActivationEvents: AutomationTriggerEvent[] = [
+    "membership_went_valid",
+    "app_membership_went_valid",
+  ];
+  if (membershipActivationEvents.includes(event)) {
+    await ensureCourseWatchesForMember({
+      supabase,
+      communityId: community.id,
+      memberId: member.id,
+      memberWhopId,
+    });
+  }
+
+  let courseContext: CourseTriggerContext | null = null;
+  if (isCourseAutomationEvent(event)) {
+    courseContext = await extractCourseTriggerContext(event, raw);
+    if (courseContext && event === "course_lesson_completed") {
+      await recordCourseProgress(supabase, member.id, courseContext);
+    }
+    if (!courseContext) {
+      return { status: "ignored", reason: "Missing course context", companyId, memberId: member.id, event };
+    }
+  }
+
   const now = new Date();
   const payloadSnapshot = {
     event,
     triggered_at: now.toISOString(),
     raw,
+    course_context: courseContext,
   };
 
   // Schedule active sequences
@@ -160,11 +194,18 @@ export async function handleAutomationTrigger({
     for (const sequence of sequences) {
       const { data: steps } = await supabase
         .from("automation_steps")
-        .select("id, position, delay_value, delay_unit, campaign_id")
+        .select("id, position, delay_value, delay_unit, campaign_id, metadata")
         .eq("sequence_id", sequence.id)
         .order("position", { ascending: true });
 
       if (!steps || steps.length === 0) continue;
+
+      if (isCourseAutomationEvent(event)) {
+        const metadata = (steps[0]?.metadata ?? null) as CourseStepMetadata | null;
+        if (!courseMetadataMatchesContext(metadata, courseContext, event)) {
+          continue;
+        }
+      }
 
       const firstStep = steps[0];
       await ensureEnrollment(supabase, sequence.id, member.id, firstStep.id);
@@ -189,7 +230,7 @@ export async function handleAutomationTrigger({
   // Standalone automation campaigns (no sequence)
   const { data: automationCampaigns } = await supabase
     .from("campaigns")
-    .select("id, trigger_delay_value, trigger_delay_unit, automation_status")
+    .select("id, trigger_delay_value, trigger_delay_unit, automation_status, automation_trigger_metadata")
     .eq("community_id", community.id)
     .eq("send_mode", "automation")
     .is("automation_sequence_id", null)
@@ -198,6 +239,17 @@ export async function handleAutomationTrigger({
 
   if (automationCampaigns && automationCampaigns.length > 0) {
     for (const campaign of automationCampaigns) {
+      if (
+        isCourseAutomationEvent(event) &&
+        !courseMetadataMatchesContext(
+          (campaign.automation_trigger_metadata ?? null) as CourseStepMetadata | null,
+          courseContext,
+          event,
+        )
+      ) {
+        continue;
+      }
+
       const delaySeconds = delayToSeconds(campaign.trigger_delay_value ?? 0, campaign.trigger_delay_unit);
       const scheduledAt = new Date(now.getTime() + delaySeconds * 1000);
       await scheduleJobIfNeeded(supabase, {
@@ -225,6 +277,12 @@ export function extractAutomationContext(data: Record<string, any>) {
     data?.experience?.company_id ??
     data?.experience?.companyId ??
     data?.experience?.company?.id ??
+    data?.course?.company_id ??
+    data?.course?.companyId ??
+    data?.course?.company?.id ??
+    data?.course?.experience?.company_id ??
+    data?.course?.experience?.companyId ??
+    data?.course?.experience?.company?.id ??
     data?.membership?.company_id ??
     data?.membership?.companyId ??
     null;
@@ -238,6 +296,7 @@ export function extractAutomationContext(data: Record<string, any>) {
     data?.membership?.memberId ??
     data?.pass?.member_id ??
     data?.pass?.memberId ??
+    data?.user?.id ??
     null;
 
   return { companyId, memberWhopId };

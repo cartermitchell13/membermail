@@ -9,6 +9,7 @@ import SelectionFloatingMenu from "@/components/campaigns/new/steps/SelectionFlo
 import SendTestEmailDialog from "@/components/campaigns/new/modals/SendTestEmailDialog";
 import { useCampaignComposer, type AutomationBlueprintPrefill } from "@/components/campaigns/new/CampaignComposerProvider";
 import { Button } from "@/components/ui/button";
+import { PaywallGate } from "@/components/subscription/PaywallGate";
 
 export default function ComposeStep() {
     const {
@@ -26,6 +27,12 @@ export default function ComposeStep() {
         senderIdentity,
         loadingSenderIdentity,
         companyId,
+        subscriptionStatus,
+        paywallReason,
+        setPaywallReason,
+        refreshSubscriptionStatus,
+        requireSubscriptionFeature,
+        automationEditor,
     } = useCampaignComposer();
     
     // Keyboard shortcuts for AI sidebar
@@ -34,7 +41,7 @@ export default function ComposeStep() {
             // Cmd/Ctrl+K to open AI sidebar
             if ((e.metaKey || e.ctrlKey) && e.key === "k") {
                 e.preventDefault();
-                if (!editor) return;
+                if (!requireSubscriptionFeature("ai") || !editor) return;
                 
                 // Capture selection if any
                 const { from, to } = editor.state.selection;
@@ -48,23 +55,35 @@ export default function ComposeStep() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [editor, setShowAiSidebar, setAiSelectedText]);
+    }, [editor, setShowAiSidebar, setAiSelectedText, requireSubscriptionFeature]);
     
     if (currentStep !== 0) return null;
     
     return (
         <div className="flex-1 min-h-0 flex flex-col overflow-x-hidden">
-            {automationBlueprint && showAutomationBanner && (
+            {automationBlueprint && showAutomationBanner && !automationEditor && (
                 <AutomationBlueprintBanner
                     blueprint={automationBlueprint}
                     onDismiss={dismissAutomationBanner}
                 />
             )}
-            {!loadingSenderIdentity && !senderIdentity.setupComplete && (
+            {subscriptionStatus.tier === "enterprise" && subscriptionStatus.authorizedUsersCount !== null && subscriptionStatus.authorizedUsersCount > 5 && (
+                <div className="border border-yellow-500/40 bg-yellow-500/10 text-yellow-100 rounded-md px-4 py-3 mb-3">
+                    <div className="flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="font-semibold text-sm text-yellow-50">Team seats exceeded</p>
+                            <p className="opacity-80">
+                                Enterprise includes up to 5 team members. You currently have {subscriptionStatus.authorizedUsersCount} authorized users. Consider removing seats you no longer need.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {!loadingSenderIdentity && !(senderIdentity.setupComplete || (senderIdentity.displayName && senderIdentity.mailUsername)) && (
                 <div className="border border-yellow-500/30 bg-yellow-500/10 text-yellow-100 rounded-md px-4 py-3 mb-3 flex items-center justify-between gap-4">
                     <div>
                         <p className="font-medium">Finish your sender setup</p>
-                        <p className="text-xs opacity-80">Set your sender name, username, and reply-to address before sending tests or campaigns.</p>
+                        <p className="text-xs opacity-80">Set your sender name and username before sending tests or campaigns.</p>
                     </div>
                     <Button
                         variant="outline"
@@ -84,6 +103,14 @@ export default function ComposeStep() {
                 show={showTestEmailDialog} 
                 onClose={() => setShowTestEmailDialog(false)} 
                 subject={subject}
+            />
+            <PaywallGate
+                open={Boolean(paywallReason)}
+                onClose={() => setPaywallReason(null)}
+                companyId={companyId}
+                reason={paywallReason ?? "ai"}
+                currentTier={subscriptionStatus.tier}
+                onRefresh={refreshSubscriptionStatus}
             />
         </div>
     );

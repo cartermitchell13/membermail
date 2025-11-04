@@ -12,7 +12,7 @@ import { toast } from "sonner";
 /**
  * Interface defining the structure of a pricing tier
  */
-interface PricingTier {
+export interface PricingTier {
 	name: string;
 	price: string;
 	period: string;
@@ -165,18 +165,14 @@ export function PricingCard({
 			</ul>
 
 			{/* Purchase button */}
-			<button
+			<Button
 				onClick={handlePurchase}
 				disabled={isPurchasing}
-				className={
-					"w-full px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed " +
-					(tier.popular
-						? "bg-[#FA4616] text-white hover:bg-[#E23F14]"
-						: "bg-white/10 text-white hover:bg-white/20")
-				}
+				variant={tier.popular ? "default" : "secondary"}
+				className="w-full"
 			>
 				{isPurchasing ? "Processing..." : tier.buttonText || "Get Started"}
-			</button>
+			</Button>
 		</div>
 	);
 }

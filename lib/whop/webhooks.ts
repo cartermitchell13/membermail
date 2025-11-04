@@ -20,6 +20,7 @@ const TARGET_EVENTS = [
   "payment_succeeded",
   "payment_failed",
   "refund_created",
+  "course_lesson_interaction.completed",
 ] as const;
 
 /**

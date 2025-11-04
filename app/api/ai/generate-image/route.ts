@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { GoogleGenAI } from "@google/genai";
 import { getAdminSupabaseClient } from "@/lib/supabase/admin";
+import { getSubscriptionAccess } from "@/lib/subscriptions/access";
 
 /**
  * API endpoint for generating images using Google Gemini
@@ -18,6 +19,19 @@ export async function POST(req: NextRequest) {
 		console.log("Prompt:", prompt);
 		console.log("Aspect Ratio:", aspectRatio);
 		console.log("API Key present:", !!env.GEMINI_API_KEY);
+
+		const companyId = typeof body?.companyId === "string" ? body.companyId : null;
+		const access = await getSubscriptionAccess({ companyId });
+		if (!access.canUseAI) {
+			return Response.json(
+				{
+					success: false,
+					error: "AI features require a Pro or Enterprise subscription",
+					tier: access.tier,
+				},
+				{ status: 402 },
+			);
+		}
 
 		// Validate inputs
 		if (!prompt) {

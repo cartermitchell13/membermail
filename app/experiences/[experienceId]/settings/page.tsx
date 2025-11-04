@@ -13,6 +13,18 @@ export default function SettingsPage({ params }: { params: Promise<{ experienceI
     const [stats, setStats] = useState<{ member_count?: number; last_sync_at?: string | null }>({});
 
     useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = localStorage.getItem(`mm:settings:${experienceId}`);
+            if (!raw) return;
+            const saved = JSON.parse(raw) as Record<string, unknown>;
+            if (typeof saved.fromName === "string") setFromName(saved.fromName);
+            if (typeof saved.replyTo === "string") setReplyTo(saved.replyTo);
+            if (typeof saved.footer === "string") setFooter(saved.footer);
+        } catch {}
+    }, [experienceId]);
+
+    useEffect(() => {
         (async () => {
             const res = await fetch(`/api/communities/resolve?companyId=${experienceId}`);
             if (res.ok) {
@@ -37,6 +49,11 @@ export default function SettingsPage({ params }: { params: Promise<{ experienceI
             body: JSON.stringify({ from_name: fromName, reply_to_email: replyTo, footer_text: footer }),
         });
         setSaving(false);
+        try {
+            const key = `mm:settings:${experienceId}`;
+            const prev = JSON.parse(localStorage.getItem(key) || "{}");
+            localStorage.setItem(key, JSON.stringify({ ...prev, fromName, replyTo, footer }));
+        } catch {}
     }
 
     async function syncNow() {
